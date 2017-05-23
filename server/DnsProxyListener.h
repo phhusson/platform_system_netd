@@ -89,8 +89,7 @@ private:
         GetHostByNameHandler(SocketClient *c,
                             char *name,
                             int af,
-                            unsigned netId,
-                            uint32_t mark,
+                            const android_net_context& netcontext,
                             int reportingLevel,
                             const android::sp<android::net::metrics::INetdEventListener>& listener);
         ~GetHostByNameHandler();
@@ -101,8 +100,7 @@ private:
         SocketClient* mClient; //ref counted
         char* mName; // owned
         int mAf;
-        unsigned mNetId;
-        uint32_t mMark;
+        android_net_context mNetContext;
         const int mReportingLevel;
         android::sp<android::net::metrics::INetdEventListener> mNetdEventListener;
     };
@@ -123,8 +121,7 @@ private:
                             void* address,
                             int addressLen,
                             int addressFamily,
-                            unsigned netId,
-                            uint32_t mark);
+                            const android_net_context& netcontext);
         ~GetHostByAddrHandler();
 
         void run();
@@ -134,8 +131,7 @@ private:
         void* mAddress;    // address to lookup; owned
         int mAddressLen; // length of address to look up
         int mAddressFamily;  // address family
-        unsigned mNetId;
-        uint32_t mMark;
+        android_net_context mNetContext;
     };
 };
 
