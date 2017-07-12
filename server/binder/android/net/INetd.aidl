@@ -170,7 +170,6 @@ interface INetd {
      *        fingerprint validation.
      * @throws ServiceSpecificException in case of failure, with an error code indicating the
      *         cause of the the failure.
-     * @return true if the arguments were successfully parsed and recognized.
      */
     void addPrivateDnsServer(in @utf8InCpp String server, int port,
              in @utf8InCpp String fingerprintAlgorithm, in @utf8InCpp String[] fingerprints);
@@ -275,9 +274,8 @@ interface INetd {
     * @param encapType encapsulation type used (if any) for the udp encap socket
     * @param encapLocalPort the port number on the host to be used in encap packets
     * @param encapRemotePort the port number of the remote to be used for encap packets
-    * @return the spi that was used to create this SA (should match the SPI paramter)
     */
-    int ipSecAddSecurityAssociation(
+    void ipSecAddSecurityAssociation(
             int transformId,
             int mode,
             int direction,
