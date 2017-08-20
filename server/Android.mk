@@ -168,12 +168,12 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_SRC_FILES := \
         InterfaceController.cpp InterfaceControllerTest.cpp \
-        Controllers.cpp \
+        Controllers.cpp ControllersTest.cpp \
         NetdConstants.cpp IptablesBaseTest.cpp \
         IptablesRestoreController.cpp IptablesRestoreControllerTest.cpp \
         BandwidthController.cpp BandwidthControllerTest.cpp \
         FirewallControllerTest.cpp FirewallController.cpp \
-        IdletimerController.cpp \
+        IdletimerController.cpp IdletimerControllerTest.cpp \
         NatControllerTest.cpp NatController.cpp \
         NetlinkCommands.cpp NetlinkManager.cpp \
         RouteController.cpp RouteControllerTest.cpp \
