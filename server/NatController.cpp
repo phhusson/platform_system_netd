@@ -382,7 +382,7 @@ int NatController::setForwardRules(bool add, const char *intIface, const char *e
         goto err_return;
     }
 
-    if (runCmd(ARRAY_SIZE(cmd4), cmd4) && add) {
+    if (runCmd(ARRAY_SIZE(cmd4), cmd4) && add && false) {
         rc = -1;
         goto err_rpfilter;
     }
