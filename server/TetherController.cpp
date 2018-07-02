@@ -625,7 +625,7 @@ int TetherController::setForwardRules(bool add, const char *intIface, const char
         "*raw\n"
         "%s %s -i %s -m rpfilter --invert ! -s fe80::/64 -j DROP\n"
         "COMMIT\n", op, LOCAL_RAW_PREROUTING, intIface);
-    if (iptablesRestoreFunction(V6, rpfilterCmd, nullptr) == -1 && add) {
+    if (iptablesRestoreFunction(V6, rpfilterCmd, nullptr) == -1 && add && false) {
         return -1;
     }
 
