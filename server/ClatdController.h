@@ -82,9 +82,6 @@ class ClatdController {
     std::map<std::string, ClatdTracker> mClatdTrackers GUARDED_BY(mutex);
     ClatdTracker* getClatdTracker(const std::string& interface) REQUIRES(mutex);
 
-    void resetEgressMap() REQUIRES(mutex);
-    void resetIngressMap() REQUIRES(mutex);
-
     void dumpEgress(netdutils::DumpWriter& dw) REQUIRES(mutex);
     void dumpIngress(netdutils::DumpWriter& dw) REQUIRES(mutex);
     void dumpTrackers(netdutils::DumpWriter& dw) REQUIRES(mutex);
@@ -105,7 +102,6 @@ class ClatdController {
         return mClatEbpfMode;
     }
 
-    base::unique_fd mNetlinkFd GUARDED_BY(mutex);
     bpf::BpfMap<ClatEgressKey, ClatEgressValue> mClatEgressMap GUARDED_BY(mutex);
     bpf::BpfMap<ClatIngressKey, ClatIngressValue> mClatIngressMap GUARDED_BY(mutex);
 
