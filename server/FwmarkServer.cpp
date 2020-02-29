@@ -24,6 +24,7 @@
 
 #include <android-base/cmsg.h>
 #include <android-base/logging.h>
+#include <android-base/properties.h>
 #include <binder/IServiceManager.h>
 #include <netd_resolv/resolv.h>  // NETID_UNSET
 
@@ -66,7 +67,9 @@ FwmarkServer::FwmarkServer(NetworkController* networkController, EventReporter* 
     : SocketListener(SOCKET_NAME, true),
       mNetworkController(networkController),
       mEventReporter(eventReporter),
-      mTrafficCtrl(trafficCtrl) {}
+      mTrafficCtrl(trafficCtrl),
+      mRedirectSocketCalls(
+              android::base::GetBoolProperty("ro.vendor.redirect_socket_calls", false)) {}
 
 bool FwmarkServer::onDataAvailable(SocketClient* client) {
     int socketFd = -1;
@@ -83,6 +86,16 @@ bool FwmarkServer::onDataAvailable(SocketClient* client) {
     // the client issues multiple commands on the same connection, never reading the responses,
     // causing its receive buffer to fill up, and thus causing our client->sendData() to block.
     return false;
+}
+
+static bool hasDestinationAddress(FwmarkCommand::CmdId cmdId, bool redirectSocketCalls) {
+    if (redirectSocketCalls) {
+        return (cmdId == FwmarkCommand::ON_SENDTO || cmdId == FwmarkCommand::ON_CONNECT ||
+                cmdId == FwmarkCommand::ON_SENDMSG || cmdId == FwmarkCommand::ON_SENDMMSG ||
+                cmdId == FwmarkCommand::ON_CONNECT_COMPLETE);
+    } else {
+        return (cmdId == FwmarkCommand::ON_CONNECT_COMPLETE);
+    }
 }
 
 int FwmarkServer::processClient(SocketClient* client, int* socketFd) {
@@ -103,9 +116,12 @@ int FwmarkServer::processClient(SocketClient* client, int* socketFd) {
     memcpy(&command, buf, sizeof(command));
     memcpy(&connectInfo, buf + sizeof(command), sizeof(connectInfo));
 
-    if (!((command.cmdId != FwmarkCommand::ON_CONNECT_COMPLETE && messageLength == sizeof(command))
-            || (command.cmdId == FwmarkCommand::ON_CONNECT_COMPLETE
-            && messageLength == sizeof(command) + sizeof(connectInfo)))) {
+    size_t expectedLen = sizeof(command);
+    if (hasDestinationAddress(command.cmdId, mRedirectSocketCalls)) {
+        expectedLen += sizeof(connectInfo);
+    }
+
+    if (messageLength != static_cast<ssize_t>(expectedLen)) {
         return -EBADMSG;
     }
 
@@ -232,6 +248,18 @@ int FwmarkServer::processClient(SocketClient* client, int* socketFd) {
                         (ret == 0) ? strtoul(portstr, nullptr, 10) : 0, client->getUid());
             }
             break;
+        }
+
+        case FwmarkCommand::ON_SENDMMSG: {
+            return 0;
+        }
+
+        case FwmarkCommand::ON_SENDMSG: {
+            return 0;
+        }
+
+        case FwmarkCommand::ON_SENDTO: {
+            return 0;
         }
 
         case FwmarkCommand::SELECT_NETWORK: {
