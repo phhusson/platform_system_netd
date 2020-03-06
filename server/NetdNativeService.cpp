@@ -64,21 +64,35 @@ namespace net {
 namespace {
 const char OPT_SHORT[] = "--short";
 
+// The input permissions should be equivalent that this function would return ok if any of them is
+// granted.
 binder::Status checkAnyPermission(const std::vector<const char*>& permissions) {
     pid_t pid = IPCThreadState::self()->getCallingPid();
     uid_t uid = IPCThreadState::self()->getCallingUid();
 
+    // TODO: Do the pure permission check in this function. Have another method
+    // (e.g. checkNetworkStackPermission) to wrap AID_SYSTEM and
+    // AID_NETWORK_STACK uid check.
     // If the caller is the system UID, don't check permissions.
     // Otherwise, if the system server's binder thread pool is full, and all the threads are
     // blocked on a thread that's waiting for us to complete, we deadlock. http://b/69389492
     //
     // From a security perspective, there is currently no difference, because:
-    // 1. The only permissions we check in netd's binder interface are CONNECTIVITY_INTERNAL
-    //    and NETWORK_STACK, which the system server always has (or MAINLINE_NETWORK_STACK, which
-    //    is equivalent to having both CONNECTIVITY_INTERNAL and NETWORK_STACK).
+    // 1. The system server has the NETWORK_STACK permission, which grants access to all the
+    //    IPCs in this file.
     // 2. AID_SYSTEM always has all permissions. See ActivityManager#checkComponentPermission.
     if (uid == AID_SYSTEM) {
         return binder::Status::ok();
+    }
+    // AID_NETWORK_STACK own MAINLINE_NETWORK_STACK permission, don't IPC to system server to check
+    // MAINLINE_NETWORK_STACK permission. Cross-process(netd, networkstack and system server)
+    // deadlock: http://b/149766727
+    if (uid == AID_NETWORK_STACK) {
+        for (const char* permission : permissions) {
+            if (std::strcmp(permission, PERM_MAINLINE_NETWORK_STACK) == 0) {
+                return binder::Status::ok();
+            }
+        }
     }
 
     for (const char* permission : permissions) {
@@ -113,9 +127,6 @@ binder::Status checkAnyPermission(const std::vector<const char*>& permissions) {
             return asBinderStatus((res));             \
         }                                             \
     } while (0)
-
-#define ENFORCE_INTERNAL_PERMISSIONS() \
-    ENFORCE_ANY_PERMISSION(PERM_CONNECTIVITY_INTERNAL, PERM_MAINLINE_NETWORK_STACK)
 
 #define ENFORCE_NETWORK_STACK_PERMISSIONS() \
     ENFORCE_ANY_PERMISSION(PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK)
@@ -248,7 +259,7 @@ status_t NetdNativeService::dump(int fd, const Vector<String16> &args) {
 }
 
 binder::Status NetdNativeService::isAlive(bool *alive) {
-    NETD_BIG_LOCK_RPC(PERM_CONNECTIVITY_INTERNAL, PERM_MAINLINE_NETWORK_STACK);
+    NETD_BIG_LOCK_RPC(PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
 
     *alive = true;
 
@@ -257,16 +268,14 @@ binder::Status NetdNativeService::isAlive(bool *alive) {
 
 binder::Status NetdNativeService::firewallReplaceUidChain(const std::string& chainName,
         bool isWhitelist, const std::vector<int32_t>& uids, bool *ret) {
-    NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_CONNECTIVITY_INTERNAL,
-                     PERM_MAINLINE_NETWORK_STACK);
+    NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
     int err = gCtls->firewallCtrl.replaceUidChain(chainName, isWhitelist, uids);
     *ret = (err == 0);
     return binder::Status::ok();
 }
 
 binder::Status NetdNativeService::bandwidthEnableDataSaver(bool enable, bool *ret) {
-    NETD_LOCKING_RPC(gCtls->bandwidthCtrl.lock, PERM_CONNECTIVITY_INTERNAL,
-                     PERM_MAINLINE_NETWORK_STACK);
+    NETD_LOCKING_RPC(gCtls->bandwidthCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
     int err = gCtls->bandwidthCtrl.enableDataSaver(enable);
     *ret = (err == 0);
     return binder::Status::ok();
@@ -333,7 +342,7 @@ binder::Status NetdNativeService::bandwidthRemoveNiceApp(int32_t uid) {
 }
 
 binder::Status NetdNativeService::networkCreatePhysical(int32_t netId, int32_t permission) {
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     int ret = gCtls->netCtrl.createPhysicalNetwork(netId, convertPermission(permission));
     return statusFromErrcode(ret);
 }
@@ -352,13 +361,13 @@ binder::Status NetdNativeService::networkDestroy(int32_t netId) {
 }
 
 binder::Status NetdNativeService::networkAddInterface(int32_t netId, const std::string& iface) {
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     int ret = gCtls->netCtrl.addInterfaceToNetwork(netId, iface.c_str());
     return statusFromErrcode(ret);
 }
 
 binder::Status NetdNativeService::networkRemoveInterface(int32_t netId, const std::string& iface) {
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     int ret = gCtls->netCtrl.removeInterfaceFromNetwork(netId, iface.c_str());
     return statusFromErrcode(ret);
 }
@@ -366,7 +375,7 @@ binder::Status NetdNativeService::networkRemoveInterface(int32_t netId, const st
 binder::Status NetdNativeService::networkAddUidRanges(
         int32_t netId, const std::vector<UidRangeParcel>& uidRangeArray) {
     // NetworkController::addUsersToNetwork is thread-safe.
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     int ret = gCtls->netCtrl.addUsersToNetwork(netId, UidRanges(uidRangeArray));
     return statusFromErrcode(ret);
 }
@@ -374,7 +383,7 @@ binder::Status NetdNativeService::networkAddUidRanges(
 binder::Status NetdNativeService::networkRemoveUidRanges(
         int32_t netId, const std::vector<UidRangeParcel>& uidRangeArray) {
     // NetworkController::removeUsersFromNetwork is thread-safe.
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     int ret = gCtls->netCtrl.removeUsersFromNetwork(netId, UidRanges(uidRangeArray));
     return statusFromErrcode(ret);
 }
@@ -386,7 +395,7 @@ binder::Status NetdNativeService::networkRejectNonSecureVpn(
     // the CommandListener "network" command will need to hold this lock too, not just the ones that
     // read/modify network internal state (that is sufficient for ::dump() because it doesn't
     // look at routes, but it's not enough here).
-    NETD_BIG_LOCK_RPC(PERM_CONNECTIVITY_INTERNAL, PERM_MAINLINE_NETWORK_STACK);
+    NETD_BIG_LOCK_RPC(PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
     UidRanges uidRanges(uidRangeArray);
 
     int err;
@@ -400,7 +409,7 @@ binder::Status NetdNativeService::networkRejectNonSecureVpn(
 
 binder::Status NetdNativeService::socketDestroy(const std::vector<UidRangeParcel>& uids,
                                                 const std::vector<int32_t>& skipUids) {
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
 
     SockDiag sd;
     if (!sd.open()) {
@@ -489,7 +498,7 @@ binder::Status NetdNativeService::tetherGetStats(
 
 binder::Status NetdNativeService::interfaceAddAddress(const std::string &ifName,
         const std::string &addrString, int prefixLength) {
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     const int err = InterfaceController::addAddress(
             ifName.c_str(), addrString.c_str(), prefixLength);
     if (err != 0) {
@@ -501,7 +510,7 @@ binder::Status NetdNativeService::interfaceAddAddress(const std::string &ifName,
 
 binder::Status NetdNativeService::interfaceDelAddress(const std::string &ifName,
         const std::string &addrString, int prefixLength) {
-    ENFORCE_INTERNAL_PERMISSIONS();
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     const int err = InterfaceController::delAddress(
             ifName.c_str(), addrString.c_str(), prefixLength);
     if (err != 0) {
@@ -582,7 +591,6 @@ binder::Status NetdNativeService::setProcSysNet(int32_t ipversion, int32_t which
 binder::Status NetdNativeService::ipSecSetEncapSocketOwner(const ParcelFileDescriptor& socket,
                                                            int newUid) {
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-    gLog.log("ipSecSetEncapSocketOwner()");
 
     uid_t callerUid = IPCThreadState::self()->getCallingUid();
     return asBinderStatus(
@@ -596,8 +604,7 @@ binder::Status NetdNativeService::ipSecAllocateSpi(
         int32_t inSpi,
         int32_t* outSpi) {
     // Necessary locking done in IpSecService and kernel
-    ENFORCE_INTERNAL_PERMISSIONS();
-    gLog.log("ipSecAllocateSpi()");
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     return asBinderStatus(gCtls->xfrmCtrl.ipSecAllocateSpi(
                     transformId,
                     sourceAddress,
@@ -615,8 +622,7 @@ binder::Status NetdNativeService::ipSecAddSecurityAssociation(
         const std::vector<uint8_t>& aeadKey, int32_t aeadIcvBits, int32_t encapType,
         int32_t encapLocalPort, int32_t encapRemotePort, int32_t interfaceId) {
     // Necessary locking done in IpSecService and kernel
-    ENFORCE_INTERNAL_PERMISSIONS();
-    gLog.log("ipSecAddSecurityAssociation()");
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     return asBinderStatus(gCtls->xfrmCtrl.ipSecAddSecurityAssociation(
             transformId, mode, sourceAddress, destinationAddress, underlyingNetId, spi, markValue,
             markMask, authAlgo, authKey, authTruncBits, cryptAlgo, cryptKey, cryptTruncBits,
@@ -629,8 +635,7 @@ binder::Status NetdNativeService::ipSecDeleteSecurityAssociation(
         const std::string& destinationAddress, int32_t spi, int32_t markValue, int32_t markMask,
         int32_t interfaceId) {
     // Necessary locking done in IpSecService and kernel
-    ENFORCE_INTERNAL_PERMISSIONS();
-    gLog.log("ipSecDeleteSecurityAssociation()");
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     return asBinderStatus(gCtls->xfrmCtrl.ipSecDeleteSecurityAssociation(
             transformId, sourceAddress, destinationAddress, spi, markValue, markMask, interfaceId));
 }
@@ -639,8 +644,7 @@ binder::Status NetdNativeService::ipSecApplyTransportModeTransform(
         const ParcelFileDescriptor& socket, int32_t transformId, int32_t direction,
         const std::string& sourceAddress, const std::string& destinationAddress, int32_t spi) {
     // Necessary locking done in IpSecService and kernel
-    ENFORCE_INTERNAL_PERMISSIONS();
-    gLog.log("ipSecApplyTransportModeTransform()");
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     return asBinderStatus(gCtls->xfrmCtrl.ipSecApplyTransportModeTransform(
             socket.get(), transformId, direction, sourceAddress, destinationAddress, spi));
 }
@@ -648,8 +652,7 @@ binder::Status NetdNativeService::ipSecApplyTransportModeTransform(
 binder::Status NetdNativeService::ipSecRemoveTransportModeTransform(
         const ParcelFileDescriptor& socket) {
     // Necessary locking done in IpSecService and kernel
-    ENFORCE_INTERNAL_PERMISSIONS();
-    gLog.log("ipSecRemoveTransportModeTransform()");
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
     return asBinderStatus(gCtls->xfrmCtrl.ipSecRemoveTransportModeTransform(socket.get()));
 }
 
@@ -661,7 +664,6 @@ binder::Status NetdNativeService::ipSecAddSecurityPolicy(int32_t transformId, in
                                                          int32_t markMask, int32_t interfaceId) {
     // Necessary locking done in IpSecService and kernel
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-    gLog.log("ipSecAddSecurityPolicy()");
     return asBinderStatus(gCtls->xfrmCtrl.ipSecAddSecurityPolicy(
             transformId, selAddrFamily, direction, tmplSrcAddress, tmplDstAddress, spi, markValue,
             markMask, interfaceId));
@@ -673,7 +675,6 @@ binder::Status NetdNativeService::ipSecUpdateSecurityPolicy(
         int32_t markValue, int32_t markMask, int32_t interfaceId) {
     // Necessary locking done in IpSecService and kernel
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-    gLog.log("ipSecAddSecurityPolicy()");
     return asBinderStatus(gCtls->xfrmCtrl.ipSecUpdateSecurityPolicy(
             transformId, selAddrFamily, direction, tmplSrcAddress, tmplDstAddress, spi, markValue,
             markMask, interfaceId));
@@ -685,7 +686,6 @@ binder::Status NetdNativeService::ipSecDeleteSecurityPolicy(int32_t transformId,
                                                             int32_t markMask, int32_t interfaceId) {
     // Necessary locking done in IpSecService and kernel
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-    gLog.log("ipSecAddSecurityPolicy()");
     return asBinderStatus(gCtls->xfrmCtrl.ipSecDeleteSecurityPolicy(
             transformId, selAddrFamily, direction, markValue, markMask, interfaceId));
 }
@@ -838,6 +838,7 @@ binder::Status NetdNativeService::ipfwdRemoveInterfaceForward(const std::string&
 }
 
 namespace {
+
 std::string addCurlyBrackets(const std::string& s) {
     return "{" + s + "}";
 }
