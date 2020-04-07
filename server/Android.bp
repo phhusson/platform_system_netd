@@ -50,6 +50,7 @@ aidl_interface {
     versions: [
         "1",
         "2",
+        "3",
     ],
 }
 
@@ -153,7 +154,7 @@ cc_binary {
         "libselinux",
         "libsysutils",
         "libutils",
-        "netd_aidl_interface-unstable-cpp",
+        "netd_aidl_interface-cpp",
         "netd_event_listener_interface-cpp",
         "oemnetd_aidl_interface-cpp",
     ],
