@@ -41,6 +41,11 @@ aidl_interface {
         cpp: {
             gen_log: true,
         },
+        java: {
+            apex_available: [
+                "com.android.bluetooth.updatable",
+            ],
+        },
     },
     versions: [
         "1",
