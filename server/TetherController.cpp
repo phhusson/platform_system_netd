@@ -870,8 +870,9 @@ Result<void> TetherController::addOffloadRule(const TetherOffloadRuleParcel& rul
     };
 
     TetherIngressValue value = {
-            static_cast<uint32_t>(rule.outputInterfaceIndex),
-            hdr,
+            .oif = static_cast<uint32_t>(rule.outputInterfaceIndex),
+            .macHeader = hdr,
+            .pmtu = 1500,  // TODO: don't just blindly use this default
     };
 
     return mBpfIngressMap.writeValue(key, value, BPF_ANY);
@@ -1058,6 +1059,49 @@ StatusOr<TetherController::TetherStatsList> TetherController::getTetherStats() {
     return statsList;
 }
 
+// Use UINT64_MAX (~0uLL) for unlimited.
+Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
+    // The common case is an update, where the stats already exist,
+    // hence we read first, even though writing with BPF_NOEXIST
+    // first would make the code simpler.
+    uint64_t rxBytes, txBytes;
+    auto statsEntry = mBpfStatsMap.readValue(ifIndex);
+
+    if (statsEntry.ok()) {
+        // Ok, there was a stats entry.
+        rxBytes = statsEntry.value().rxBytes;
+        txBytes = statsEntry.value().txBytes;
+    } else if (statsEntry.error().code() == ENOENT) {
+        // No stats entry - create one with zeroes.
+        TetherStatsValue stats = {};
+        // This function is the *only* thing that can create entries.
+        auto ret = mBpfStatsMap.writeValue(ifIndex, stats, BPF_NOEXIST);
+        if (!ret.ok()) {
+            ALOGE("mBpfStatsMap.writeValue failure: %s", strerror(ret.error().code()));
+            return ret;
+        }
+        rxBytes = 0;
+        txBytes = 0;
+    } else {
+        // Other error while trying to get stats entry.
+        return statsEntry.error();
+    }
+
+    // rxBytes + txBytes won't overflow even at 5gbps for ~936 years.
+    uint64_t newLimit = rxBytes + txBytes + limit;
+
+    // if adding limit (e.g., if limit is UINT64_MAX) caused overflow: clamp to 'infinity'
+    if (newLimit < rxBytes + txBytes) newLimit = ~0uLL;
+
+    auto ret = mBpfLimitMap.writeValue(ifIndex, newLimit, BPF_ANY);
+    if (!ret.ok()) {
+        ALOGE("mBpfLimitMap.writeValue failure: %s", strerror(ret.error().code()));
+        return ret;
+    }
+
+    return {};
+}
+
 void TetherController::maybeStartBpf(const char* extIface) {
     if (!bpf::isBpfSupported()) return;
 
@@ -1088,6 +1132,9 @@ void TetherController::maybeStartBpf(const char* extIface) {
               isEthernet.value(), strerror(-rv));
         return;
     }
+
+    // For now we just set data limit to 'infinity' ie. unlimited.
+    setBpfLimit(ifIndex, ~0uLL);
 }
 
 void TetherController::maybeStopBpf(const char* extIface) {
@@ -1139,7 +1186,7 @@ void TetherController::dumpBpf(DumpWriter& dw) {
         return;
     }
 
-    dw.println("BPF ingress map: iif v6addr -> oif srcmac dstmac ethertype");
+    dw.println("BPF ingress map: iif v6addr -> oif srcmac dstmac ethertype [pmtu]");
     const auto printIngressMap = [&dw](const TetherIngressKey& key, const TetherIngressValue& value,
                                        const BpfMap<TetherIngressKey, TetherIngressValue>&) {
         char addr[INET6_ADDRSTRLEN];
@@ -1147,8 +1194,8 @@ void TetherController::dumpBpf(DumpWriter& dw) {
         std::string dst = l2ToString(value.macHeader.h_dest, sizeof(value.macHeader.h_dest));
         inet_ntop(AF_INET6, &key.neigh6, addr, sizeof(addr));
 
-        dw.println("%u %s -> %u %s %s %04x", key.iif, addr, value.oif, src.c_str(), dst.c_str(),
-                   ntohs(value.macHeader.h_proto));
+        dw.println("%u %s -> %u %s %s %04x [%u]", key.iif, addr, value.oif, src.c_str(),
+                   dst.c_str(), ntohs(value.macHeader.h_proto), value.pmtu);
 
         return Result<void>();
     };
