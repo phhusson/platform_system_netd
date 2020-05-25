@@ -69,37 +69,46 @@ static inline __always_inline int do_forward(struct __sk_buff* skb, bool is_ethe
     // If we don't find any offload information then simply let the core stack handle it...
     if (!v) return TC_ACT_OK;
 
-    uint32_t stat_k = skb->ifindex;
+    uint32_t stat_and_limit_k = skb->ifindex;
 
-    TetherStatsValue* stat_v = bpf_tether_stats_map_lookup_elem(&stat_k);
+    TetherStatsValue* stat_v = bpf_tether_stats_map_lookup_elem(&stat_and_limit_k);
 
-    // If we don't have anywhere to put stats, create an empty entry.
-    if (!stat_v) {
-        TetherStatsValue emptyStats = {};
-        bpf_tether_stats_map_update_elem(&stat_k, &emptyStats, BPF_NOEXIST);
-        stat_v = bpf_tether_stats_map_lookup_elem(&stat_k);
-    }
-
-    // If we *still* don't have anywhere to put stats, then abort...
+    // If we don't have anywhere to put stats, then abort...
     if (!stat_v) return TC_ACT_OK;
 
-    // This is approximate handling of tcp/ip overhead for incoming LRO/GRO packets:
-    // mtu of 1500 is not necessarily correct, but worst case we simply undercount,
-    // which is still better then not accounting for this overhead at all.
-    // Note: this really shouldn't be device mtu at all, but rather should be derived
-    // from this particular connection's mss - which requires a much newer kernel.
-    const int mtu = 1500;
+    uint64_t* limit_v = bpf_tether_limit_map_lookup_elem(&stat_and_limit_k);
+
+    // If we don't have a limit, then abort...
+    if (!limit_v) return TC_ACT_OK;
+
+    // Required IPv6 minimum mtu is 1280, below that not clear what we should do, abort...
+    const int pmtu = v->pmtu;
+    if (pmtu < IPV6_MIN_MTU) return TC_ACT_OK;
+
+    // Approximate handling of TCP/IPv6 overhead for incoming LRO/GRO packets: default
+    // outbound path mtu of 1500 is not necessarily correct, but worst case we simply
+    // undercount, which is still better then not accounting for this overhead at all.
+    // Note: this really shouldn't be device/path mtu at all, but rather should be
+    // derived from this particular connection's mss (ie. from gro segment size).
+    // This would require a much newer kernel with newer ebpf accessors.
+    // (This is also blindly assuming 12 bytes of tcp timestamp option in tcp header)
     uint64_t packets = 1;
     uint64_t bytes = skb->len;
-    if (bytes > mtu) {
-        const bool is_ipv6 = (skb->protocol == htons(ETH_P_IPV6));
-        const int ip_overhead = (is_ipv6 ? sizeof(struct ipv6hdr) : sizeof(struct iphdr));
-        const int tcp_overhead = ip_overhead + sizeof(struct tcphdr) + 12;
-        const int mss = mtu - tcp_overhead;
+    if (bytes > pmtu) {
+        const int tcp_overhead = sizeof(struct ipv6hdr) + sizeof(struct tcphdr) + 12;
+        const int mss = pmtu - tcp_overhead;
         const uint64_t payload = bytes - tcp_overhead;
         packets = (payload + mss - 1) / mss;
         bytes = tcp_overhead * packets + payload;
     }
+
+    // Are we past the limit?  If so, then abort...
+    // Note: will not overflow since u64 is 936 years even at 5Gbps.
+    // Do not drop here.  Offload is just that, whenever we fail to handle
+    // a packet we let the core stack deal with things.
+    // (The core stack needs to handle limits correctly anyway,
+    // since we don't offload all traffic in both directions)
+    if (stat_v->rxBytes + stat_v->txBytes + bytes > *limit_v) return TC_ACT_OK;
 
     if (!is_ethernet) {
         is_ethernet = true;
