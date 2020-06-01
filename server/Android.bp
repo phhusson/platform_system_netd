@@ -160,7 +160,7 @@ cc_library_static {
         "libpcap",
         "libqtaguid",
         "libssl",
-        "netd_aidl_interface-cpp",
+        "netd_aidl_interface-unstable-cpp",
         "netd_event_listener_interface-cpp",
     ],
     aidl: {
@@ -205,7 +205,7 @@ cc_binary {
         "libselinux",
         "libsysutils",
         "libutils",
-        "netd_aidl_interface-cpp",
+        "netd_aidl_interface-unstable-cpp",
         "netd_event_listener_interface-cpp",
         "oemnetd_aidl_interface-cpp",
     ],
