@@ -251,16 +251,15 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
     uint64_t limit = ~0uLL;
     ASSERT_OK(bpfLimitMap.writeValue(k, limit, BPF_NOEXIST));
 
-    // minimal 'acceptable' 40-byte hoplimit 255 IPv6 packet
+    // minimal 'acceptable' 40-byte hoplimit 255 IPv6 packet, src ip 2000::
     uint8_t pkt[mtu] = {
-            0x60, 0, 0, 0, 0, 40, 0, 255,
+            0x60, 0, 0, 0, 0, 40, 0, 255, 0x20,
     };
 
     // Iterate over all packet sizes from minimal ipv6 packet to mtu.
     // Tethering ebpf program should forward the packet from tun to tap interface.
     // TUN is L3, TAP is L2, so it will add a 14 byte ethernet header.
-    // TODO: remove -ETH_HLEN once all kernels are fixed and prebuilts published
-    for (int pkt_size = 40; pkt_size <= mtu - ETH_HLEN; ++pkt_size) {
+    for (int pkt_size = 40; pkt_size <= mtu; ++pkt_size) {
         rv = write(tun, pkt, pkt_size);
         ASSERT_EQ(errno, 0);
         ASSERT_EQ(rv, pkt_size);
