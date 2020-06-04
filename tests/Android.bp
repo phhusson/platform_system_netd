@@ -43,7 +43,7 @@ cc_test_library {
         "libnetutils",
         "libsysutils",
         "libutils",
-        "netd_aidl_interface-cpp",
+        "netd_aidl_interface-unstable-cpp",
     ],
 }
 
