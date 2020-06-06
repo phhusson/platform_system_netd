@@ -120,6 +120,8 @@ interface INetd {
   void tetherOffloadRuleAdd(in android.net.TetherOffloadRuleParcel rule);
   void tetherOffloadRuleRemove(in android.net.TetherOffloadRuleParcel rule);
   android.net.TetherStatsParcel[] tetherOffloadGetStats();
+  void tetherOffloadSetInterfaceQuota(int ifIndex, long quotaBytes);
+  android.net.TetherStatsParcel tetherOffloadGetAndClearStats(int ifIndex);
   const int IPV4 = 4;
   const int IPV6 = 6;
   const int CONF = 1;
