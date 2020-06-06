@@ -84,6 +84,10 @@ constexpr const char kTcpBeLiberal[] = "/proc/sys/net/netfilter/nf_conntrack_tcp
 // Chosen to match AID_DNS_TETHER, as made "friendly" by fs_config_generator.py.
 constexpr const char kDnsmasqUsername[] = "dns_tether";
 
+// A value used by interface quota indicates there is no limit.
+// Sync from frameworks/base/core/java/android/net/netstats/provider/NetworkStatsProvider.java
+constexpr int64_t QUOTA_UNLIMITED = -1;
+
 bool writeToFile(const char* filename, const char* value) {
     int fd = open(filename, O_WRONLY | O_CLOEXEC);
     if (fd < 0) {
@@ -1138,6 +1142,67 @@ void TetherController::maybeStopBpf(const char* extIface) {
     if (rv < 0) {
         ALOGE("tcFilterDelDevIngressTether(%d[%s]) failure: %s", ifIndex, extIface, strerror(-rv));
     }
+}
+
+int TetherController::setTetherOffloadInterfaceQuota(int ifIndex, int64_t maxBytes) {
+    if (!mBpfStatsMap.isValid() || !mBpfLimitMap.isValid()) return -ENOTSUP;
+
+    if (ifIndex <= 0) return -ENODEV;
+
+    if (maxBytes < QUOTA_UNLIMITED) {
+        ALOGE("Invalid bytes value. Must be -1 (unlimited) or 0..max_int64.");
+        return -ERANGE;
+    }
+
+    // Note that a value of unlimited quota (-1) indicates simply max_uint64.
+    const auto res = setBpfLimit(static_cast<uint32_t>(ifIndex), static_cast<uint64_t>(maxBytes));
+    if (!res.ok()) {
+        ALOGE("Fail to set quota %" PRId64 " for interface index %d: %s", maxBytes, ifIndex,
+              strerror(res.error().code()));
+        return -res.error().code();
+    }
+
+    return 0;
+}
+
+Result<TetherController::TetherOffloadStats> TetherController::getAndClearTetherOffloadStats(
+        int ifIndex) {
+    if (!mBpfStatsMap.isValid() || !mBpfLimitMap.isValid()) return Error(ENOTSUP);
+
+    if (ifIndex <= 0) {
+        return Error(ENODEV) << "Invalid interface " << ifIndex;
+    }
+
+    // getAndClearTetherOffloadStats is called after all offload rules have already been deleted
+    // for the given upstream interface. Before starting to do cleanup stuff in this function, use
+    // synchronizeKernelRCU to make sure that all the current running eBPF programs are finished
+    // on all CPUs, especially the unfinished packet processing. After synchronizeKernelRCU
+    // returned, we can safely read or delete on the stats map or the limit map.
+    if (int res = bpf::synchronizeKernelRCU()) {
+        // Error log but don't return error. Do as much cleanup as possible.
+        ALOGE("synchronize_rcu() failed: %s", strerror(-res));
+    }
+
+    const auto stats = mBpfStatsMap.readValue(ifIndex);
+    if (!stats.ok()) {
+        return Error(stats.error().code()) << "Fail to get stats for interface index " << ifIndex;
+    }
+
+    auto res = mBpfStatsMap.deleteValue(ifIndex);
+    if (!res.ok()) {
+        return Error(res.error().code()) << "Fail to delete stats for interface index " << ifIndex;
+    }
+
+    res = mBpfLimitMap.deleteValue(ifIndex);
+    if (!res.ok()) {
+        return Error(res.error().code()) << "Fail to delete limit for interface index " << ifIndex;
+    }
+
+    return TetherOffloadStats{.ifIndex = static_cast<int>(ifIndex),
+                              .rxBytes = static_cast<int64_t>(stats.value().rxBytes),
+                              .rxPackets = static_cast<int64_t>(stats.value().rxPackets),
+                              .txBytes = static_cast<int64_t>(stats.value().txBytes),
+                              .txPackets = static_cast<int64_t>(stats.value().txPackets)};
 }
 
 void TetherController::dumpIfaces(DumpWriter& dw) {
