@@ -77,7 +77,7 @@ aidl_interface {
 java_library {
     name: "netd_aidl_interfaces-platform-java",
     static_libs: [
-        "netd_aidl_interface-java",
+        "netd_aidl_interface-unstable-java",
         "netd_event_listener_interface-java",
     ],
     // TODO: remove bluetooth, which doesn't actually use netd at all.
