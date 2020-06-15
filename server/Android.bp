@@ -26,6 +26,8 @@ aidl_interface {
                 "com.android.tethering",
                 "com.android.wifi",
             ],
+            // this is part of updatable modules(NetworkStack) which targets 29(Q)
+            min_sdk_version: "29",
         },
     },
     versions: [
