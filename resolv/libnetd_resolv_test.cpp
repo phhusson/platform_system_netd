@@ -19,16 +19,22 @@
 #include <gtest/gtest.h>
 
 #include <android-base/stringprintf.h>
+#include <android/multinetwork.h>  // ResNsendFlags
 #include <arpa/inet.h>
+#include <arpa/nameser.h>
 #include <netdb.h>
+#include <resolv.h>
 
 #include "dns_responder.h"
 #include "getaddrinfo.h"
 #include "gethnamaddr.h"
+#include "res_send.h"
 #include "resolv_cache.h"
 
 // TODO: make this dynamic and stop depending on implementation details.
 constexpr unsigned int TEST_NETID = 30;
+
+constexpr int MAXPACKET = (8 * 1024);
 
 // Specifying 0 in ai_socktype or ai_protocol of struct addrinfo indicates that any type or
 // protocol can be returned by getaddrinfo().
@@ -457,6 +463,139 @@ TEST_F(GetAddrInfoForNetContextTest, ServerTimeout) {
     EXPECT_EQ(NETD_RESOLV_TIMEOUT, rv);
 
     if (result) freeaddrinfo(result);
+}
+
+namespace {
+
+std::string toString(uint8_t* buf, int bufLen, int ipType) {
+    ns_msg handle;
+    int ancount, n = 0;
+    ns_rr rr;
+
+    if (ns_initparse((const uint8_t*)buf, bufLen, &handle) >= 0) {
+        ancount = ns_msg_count(handle, ns_s_an);
+        if (ns_parserr(&handle, ns_s_an, n, &rr) == 0) {
+            const uint8_t* rdata = ns_rr_rdata(rr);
+            char buffer[INET6_ADDRSTRLEN];
+            if (inet_ntop(ipType, (const char*)rdata, buffer, sizeof(buffer))) {
+                return buffer;
+            }
+        }
+    }
+    return "";
+}
+
+std::string resolvResNsendHelper(const android_net_context* _Nonnull netContext, const char* host,
+                                 int nsType, int flag) {
+    std::vector<uint8_t> ansBuf(MAXPACKET, 0);
+    int rcode = ns_r_noerror;
+    std::vector<uint8_t> msg(MAXPACKET, 0);
+    const int msgLen = res_mkquery(ns_o_query, host, ns_c_in, nsType, nullptr, 0, nullptr,
+                                   msg.data(), MAXPACKET);
+    const int nsendAns = resolv_res_nsend(netContext, msg.data(), msgLen, ansBuf.data(), MAXPACKET,
+                                          &rcode, static_cast<ResNsendFlags>(flag));
+    return toString(ansBuf.data(), nsendAns, (nsType == ns_t_a) ? AF_INET : AF_INET6);
+}
+
+}  // namespace
+
+TEST_F(GetAddrInfoForNetContextTest, Async_CacheFlags) {
+    constexpr char listen_addr[] = "127.0.0.3";
+    constexpr char listen_srv[] = "53";
+    constexpr char host1[] = "howdy.example.com.";
+    constexpr char host2[] = "howdy.example2.com.";
+    constexpr char host3[] = "howdy.example3.com.";
+    test::DNSResponder dns(listen_addr, listen_srv, 250, ns_rcode::ns_r_servfail);
+    dns.addMapping(host1, ns_type::ns_t_a, "1.2.3.4");
+    dns.addMapping(host3, ns_type::ns_t_a, "1.2.3.6");
+    dns.addMapping(host2, ns_type::ns_t_aaaa, "::1.2.3.5");
+    dns.addMapping(host3, ns_type::ns_t_aaaa, "::1.2.3.6");
+    ASSERT_TRUE(dns.startServer());
+    const char* servers[] = {listen_addr};
+    ASSERT_EQ(0, resolv_set_nameservers_for_net(TEST_NETID, servers,
+                                                sizeof(servers) / sizeof(servers[0]),
+                                                mDefaultSearchDomains, &mDefaultParams_Binder));
+
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, ANDROID_RESOLV_NO_CACHE_STORE),
+              "1.2.3.4");
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, ANDROID_RESOLV_NO_CACHE_STORE),
+              "1.2.3.4");
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, ANDROID_RESOLV_NO_CACHE_STORE),
+              "1.2.3.4");
+
+    // No cache exists, expect 3 queries
+    EXPECT_EQ(3U, GetNumQueries(dns, host1));  // no query because of the cache
+
+    // Raise a query with no flags to ensure no cache exists. Also make an cache entry for the
+    // query.
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, 0), "1.2.3.4");
+
+    // Expect 4 queries because there should be no cache before this query.
+    EXPECT_EQ(4U, GetNumQueries(dns, host1));
+
+    // Now we have the cache entry, re-query with ANDROID_RESOLV_NO_CACHE_STORE to ensure
+    // that ANDROID_RESOLV_NO_CACHE_STORE implied ANDROID_RESOLV_NO_CACHE_LOOKUP.
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, ANDROID_RESOLV_NO_CACHE_STORE),
+              "1.2.3.4");
+
+    // Expect 5 queries because we shouldn't do cache lookup for the query which has
+    // ANDROID_RESOLV_NO_CACHE_STORE.
+    EXPECT_EQ(5U, GetNumQueries(dns, host1));
+
+    // ANDROID_RESOLV_NO_CACHE_LOOKUP
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, ANDROID_RESOLV_NO_CACHE_LOOKUP),
+              "1.2.3.4");
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, ANDROID_RESOLV_NO_CACHE_LOOKUP),
+              "1.2.3.4");
+
+    // Cache was skipped, expect 2 more queries.
+    EXPECT_EQ(7U, GetNumQueries(dns, host1));
+
+    // Re-query verify cache works
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host1, ns_t_a, 0), "1.2.3.4");
+
+    // Cache hits,  expect still 7 queries
+    EXPECT_EQ(7U, GetNumQueries(dns, host1));
+
+    // Start to verify if ANDROID_RESOLV_NO_CACHE_LOOKUP does write response into cache
+    dns.clearQueries();
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host2, ns_t_aaaa, ANDROID_RESOLV_NO_CACHE_LOOKUP),
+              "::1.2.3.5");
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host2, ns_t_aaaa, ANDROID_RESOLV_NO_CACHE_LOOKUP),
+              "::1.2.3.5");
+
+    // Skip cache, expect 2 queries
+    EXPECT_EQ(2U, GetNumQueries(dns, host2));
+
+    // Re-query without flags
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host2, ns_t_aaaa, 0), "::1.2.3.5");
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host2, ns_t_aaaa, 0), "::1.2.3.5");
+
+    // Cache hits, expect still 2 queries
+    EXPECT_EQ(2U, GetNumQueries(dns, host2));
+
+    // Test both ANDROID_RESOLV_NO_CACHE_STORE and ANDROID_RESOLV_NO_CACHE_LOOKUP are set
+    dns.clearQueries();
+
+    // Make sure that the cache of "howdy.example3.com" exists.
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host3, ns_t_aaaa, 0), "::1.2.3.6");
+    EXPECT_EQ(1U, GetNumQueries(dns, host3));
+
+    // Re-query with testFlags
+    const int testFlag = ANDROID_RESOLV_NO_CACHE_STORE | ANDROID_RESOLV_NO_CACHE_LOOKUP;
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host3, ns_t_aaaa, testFlag), "::1.2.3.6");
+    // Expect cache lookup is skipped.
+    EXPECT_EQ(2U, GetNumQueries(dns, host3));
+
+    // Do another query with testFlags
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host3, ns_t_a, testFlag), "1.2.3.6");
+    // Expect cache lookup is skipped.
+    EXPECT_EQ(3U, GetNumQueries(dns, host3));
+
+    // Re-query with no flags
+    EXPECT_EQ(resolvResNsendHelper(&mNetcontext, host3, ns_t_a, testFlag), "1.2.3.6");
+    // Expect no cache hit because cache storing is also skipped in previous query.
+    EXPECT_EQ(4U, GetNumQueries(dns, host3));
 }
 
 TEST_F(GetHostByNameForNetContextTest, AlphabeticalHostname) {
