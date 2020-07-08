@@ -130,7 +130,10 @@ static inline __always_inline int do_forward(struct __sk_buff* skb, bool is_ethe
         ip6 = (void*)(eth + 1);
 
         // I do not believe this can ever happen, but keep the verifier happy...
-        if (data + l2_header_size + sizeof(*ip6) > data_end) return TC_ACT_SHOT;
+        if (data + l2_header_size + sizeof(*ip6) > data_end) {
+            __sync_fetch_and_add(&stat_v->rxErrors, 1);
+            return TC_ACT_SHOT;
+        }
     };
 
     // CHECKSUM_COMPLETE is a 16-bit one's complement sum,
