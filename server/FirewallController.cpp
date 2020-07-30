@@ -87,8 +87,8 @@ const char* FirewallController::ICMPV6_TYPES[] = {
 };
 
 FirewallController::FirewallController(void) : mMaxUid(discoverMaximumValidUid(kUidMapProcFile)) {
-    // If no rules are set, it's in BLACKLIST mode
-    mFirewallType = BLACKLIST;
+    // If no rules are set, it's in DENYLIST mode
+    mFirewallType = DENYLIST;
     mIfaceRules = {};
 }
 
@@ -110,7 +110,7 @@ int FirewallController::setFirewallType(FirewallType ftype) {
         // flush any existing rules
         resetFirewall();
 
-        if (ftype == WHITELIST) {
+        if (ftype == ALLOWLIST) {
             // create default rule to drop all traffic
             std::string command =
                 "*filter\n"
@@ -121,14 +121,14 @@ int FirewallController::setFirewallType(FirewallType ftype) {
             res = execIptablesRestore(V4V6, command.c_str());
         }
 
-        // Set this after calling disableFirewall(), since it defaults to WHITELIST there
+        // Set this after calling disableFirewall(), since it defaults to ALLOWLIST there
         mFirewallType = ftype;
     }
     return res ? -EREMOTEIO : 0;
 }
 
 int FirewallController::resetFirewall(void) {
-    mFirewallType = WHITELIST;
+    mFirewallType = ALLOWLIST;
     mIfaceRules.clear();
 
     // flush any existing rules
@@ -178,8 +178,8 @@ int FirewallController::isFirewallEnabled(void) {
 }
 
 int FirewallController::setInterfaceRule(const char* iface, FirewallRule rule) {
-    if (mFirewallType == BLACKLIST) {
-        // Unsupported in BLACKLIST mode
+    if (mFirewallType == DENYLIST) {
+        // Unsupported in DENYLIST mode
         return -EINVAL;
     }
 
@@ -214,15 +214,15 @@ int FirewallController::setInterfaceRule(const char* iface, FirewallRule rule) {
 FirewallType FirewallController::getFirewallType(ChildChain chain) {
     switch(chain) {
         case DOZABLE:
-            return WHITELIST;
+            return ALLOWLIST;
         case STANDBY:
-            return BLACKLIST;
+            return DENYLIST;
         case POWERSAVE:
-            return WHITELIST;
+            return ALLOWLIST;
         case NONE:
             return mFirewallType;
         default:
-            return BLACKLIST;
+            return DENYLIST;
     }
 }
 
@@ -230,11 +230,11 @@ int FirewallController::setUidRule(ChildChain chain, int uid, FirewallRule rule)
     const char* op;
     const char* target;
     FirewallType firewallType = getFirewallType(chain);
-    if (firewallType == WHITELIST) {
+    if (firewallType == ALLOWLIST) {
         target = "RETURN";
         // When adding, insert RETURN rules at the front, before the catch-all DROP at the end.
         op = (rule == ALLOW)? "-I" : "-D";
-    } else { // BLACKLIST mode
+    } else {  // DENYLIST mode
         target = "DROP";
         // When adding, append DROP rules at the end, after the RETURN rule that matches TCP RSTs.
         op = (rule == DENY)? "-A" : "-D";
@@ -274,7 +274,7 @@ int FirewallController::setUidRule(ChildChain chain, int uid, FirewallRule rule)
 
 int FirewallController::createChain(const char* chain, FirewallType type) {
     static const std::vector<int32_t> NO_UIDS;
-    return replaceUidChain(chain, type == WHITELIST, NO_UIDS);
+    return replaceUidChain(chain, type == ALLOWLIST, NO_UIDS);
 }
 
 /* static */
@@ -290,18 +290,18 @@ std::string FirewallController::makeCriticalCommands(IptablesTarget target, cons
     return commands;
 }
 
-std::string FirewallController::makeUidRules(IptablesTarget target, const char *name,
-        bool isWhitelist, const std::vector<int32_t>& uids) {
+std::string FirewallController::makeUidRules(IptablesTarget target, const char* name,
+                                             bool isAllowlist, const std::vector<int32_t>& uids) {
     std::string commands;
     StringAppendF(&commands, "*filter\n:%s -\n", name);
 
-    // Whitelist chains have UIDs at the beginning, and new UIDs are added with '-I'.
-    if (isWhitelist) {
+    // Allowlist chains have UIDs at the beginning, and new UIDs are added with '-I'.
+    if (isAllowlist) {
         for (auto uid : uids) {
             StringAppendF(&commands, "-A %s -m owner --uid-owner %d -j RETURN\n", name, uid);
         }
 
-        // Always whitelist system UIDs.
+        // Always allowlist system UIDs.
         StringAppendF(&commands,
                 "-A %s -m owner --uid-owner %d-%d -j RETURN\n", name, 0, MAX_SYSTEM_UID);
 
@@ -310,7 +310,7 @@ std::string FirewallController::makeUidRules(IptablesTarget target, const char *
         StringAppendF(&commands,
                 "-A %s -m owner ! --uid-owner %d-%u -j RETURN\n", name, 0, mMaxUid);
 
-        // Always whitelist traffic with protocol ESP, or no known socket - required for IPSec
+        // Always allowlist traffic with protocol ESP, or no known socket - required for IPSec
         StringAppendF(&commands, "-A %s -p esp -j RETURN\n", name);
     }
 
@@ -322,20 +322,20 @@ std::string FirewallController::makeUidRules(IptablesTarget target, const char *
     // access. Both incoming and outgoing RSTs are allowed.
     StringAppendF(&commands, "-A %s -p tcp --tcp-flags RST RST -j RETURN\n", name);
 
-    if (isWhitelist) {
+    if (isAllowlist) {
         commands.append(makeCriticalCommands(target, name));
     }
 
-    // Blacklist chains have UIDs at the end, and new UIDs are added with '-A'.
-    if (!isWhitelist) {
+    // Denylist chains have UIDs at the end, and new UIDs are added with '-A'.
+    if (!isAllowlist) {
         for (auto uid : uids) {
             StringAppendF(&commands, "-A %s -m owner --uid-owner %d -j DROP\n", name, uid);
         }
     }
 
-    // If it's a whitelist chain, add a default DROP at the end. This is not necessary for a
-    // blacklist chain, because all user-defined chains implicitly RETURN at the end.
-    if (isWhitelist) {
+    // If it's an allowlist chain, add a default DROP at the end. This is not necessary for a
+    // denylist chain, because all user-defined chains implicitly RETURN at the end.
+    if (isAllowlist) {
         StringAppendF(&commands, "-A %s -j DROP\n", name);
     }
 
@@ -344,13 +344,13 @@ std::string FirewallController::makeUidRules(IptablesTarget target, const char *
     return commands;
 }
 
-int FirewallController::replaceUidChain(
-        const std::string &name, bool isWhitelist, const std::vector<int32_t>& uids) {
+int FirewallController::replaceUidChain(const std::string& name, bool isAllowlist,
+                                        const std::vector<int32_t>& uids) {
     if (mUseBpfOwnerMatch) {
-        return gCtls->trafficCtrl.replaceUidOwnerMap(name, isWhitelist, uids);
+        return gCtls->trafficCtrl.replaceUidOwnerMap(name, isAllowlist, uids);
     }
-    std::string commands4 = makeUidRules(V4, name.c_str(), isWhitelist, uids);
-    std::string commands6 = makeUidRules(V6, name.c_str(), isWhitelist, uids);
+    std::string commands4 = makeUidRules(V4, name.c_str(), isAllowlist, uids);
+    std::string commands6 = makeUidRules(V6, name.c_str(), isAllowlist, uids);
     return execIptablesRestore(V4, commands4.c_str()) | execIptablesRestore(V6, commands6.c_str());
 }
 

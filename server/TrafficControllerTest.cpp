@@ -165,30 +165,30 @@ class TrafficControllerTest : public ::testing::Test {
 
     void checkUidOwnerRuleForChain(ChildChain chain, UidOwnerMatchType match) {
         uint32_t uid = TEST_UID;
-        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, DENY, BLACKLIST));
+        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, DENY, DENYLIST));
         Result<UidOwnerValue> value = mFakeUidOwnerMap.readValue(uid);
         EXPECT_RESULT_OK(value);
         EXPECT_TRUE(value.value().rule & match);
 
         uid = TEST_UID2;
-        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, ALLOW, WHITELIST));
+        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, ALLOW, ALLOWLIST));
         value = mFakeUidOwnerMap.readValue(uid);
         EXPECT_RESULT_OK(value);
         EXPECT_TRUE(value.value().rule & match);
 
-        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, DENY, WHITELIST));
+        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, DENY, ALLOWLIST));
         value = mFakeUidOwnerMap.readValue(uid);
         EXPECT_FALSE(value.ok());
         EXPECT_EQ(ENOENT, value.error().code());
 
         uid = TEST_UID;
-        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, ALLOW, BLACKLIST));
+        EXPECT_EQ(0, mTc.changeUidOwnerRule(chain, uid, ALLOW, DENYLIST));
         value = mFakeUidOwnerMap.readValue(uid);
         EXPECT_FALSE(value.ok());
         EXPECT_EQ(ENOENT, value.error().code());
 
         uid = TEST_UID3;
-        EXPECT_EQ(-ENOENT, mTc.changeUidOwnerRule(chain, uid, ALLOW, BLACKLIST));
+        EXPECT_EQ(-ENOENT, mTc.changeUidOwnerRule(chain, uid, ALLOW, DENYLIST));
         value = mFakeUidOwnerMap.readValue(uid);
         EXPECT_FALSE(value.ok());
         EXPECT_EQ(ENOENT, value.error().code());
@@ -211,12 +211,12 @@ class TrafficControllerTest : public ::testing::Test {
 
     void checkUidMapReplace(const std::string& name, const std::vector<int32_t>& uids,
                             UidOwnerMatchType match) {
-        bool isWhitelist = true;
-        EXPECT_EQ(0, mTc.replaceUidOwnerMap(name, isWhitelist, uids));
+        bool isAllowlist = true;
+        EXPECT_EQ(0, mTc.replaceUidOwnerMap(name, isAllowlist, uids));
         checkEachUidValue(uids, match);
 
-        isWhitelist = false;
-        EXPECT_EQ(0, mTc.replaceUidOwnerMap(name, isWhitelist, uids));
+        isAllowlist = false;
+        EXPECT_EQ(0, mTc.replaceUidOwnerMap(name, isAllowlist, uids));
         checkEachUidValue(uids, match);
     }
     void expectUidOwnerMapValues(const std::vector<std::string>& appStrUids, uint8_t expectedRule,
@@ -605,26 +605,26 @@ TEST_F(TrafficControllerTest, TestUpdateOwnerMapEntry) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
     uint32_t uid = TEST_UID;
-    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(STANDBY_MATCH, uid, DENY, BLACKLIST)));
+    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(STANDBY_MATCH, uid, DENY, DENYLIST)));
     Result<UidOwnerValue> value = mFakeUidOwnerMap.readValue(uid);
     ASSERT_RESULT_OK(value);
     ASSERT_TRUE(value.value().rule & STANDBY_MATCH);
 
-    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(DOZABLE_MATCH, uid, ALLOW, WHITELIST)));
+    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(DOZABLE_MATCH, uid, ALLOW, ALLOWLIST)));
     value = mFakeUidOwnerMap.readValue(uid);
     ASSERT_RESULT_OK(value);
     ASSERT_TRUE(value.value().rule & DOZABLE_MATCH);
 
-    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(DOZABLE_MATCH, uid, DENY, WHITELIST)));
+    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(DOZABLE_MATCH, uid, DENY, ALLOWLIST)));
     value = mFakeUidOwnerMap.readValue(uid);
     ASSERT_RESULT_OK(value);
     ASSERT_FALSE(value.value().rule & DOZABLE_MATCH);
 
-    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(STANDBY_MATCH, uid, ALLOW, BLACKLIST)));
+    ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(STANDBY_MATCH, uid, ALLOW, DENYLIST)));
     ASSERT_FALSE(mFakeUidOwnerMap.readValue(uid).ok());
 
     uid = TEST_UID2;
-    ASSERT_FALSE(isOk(mTc.updateOwnerMapEntry(STANDBY_MATCH, uid, ALLOW, BLACKLIST)));
+    ASSERT_FALSE(isOk(mTc.updateOwnerMapEntry(STANDBY_MATCH, uid, ALLOW, DENYLIST)));
     ASSERT_FALSE(mFakeUidOwnerMap.readValue(uid).ok());
 }
 
@@ -634,8 +634,8 @@ TEST_F(TrafficControllerTest, TestChangeUidOwnerRule) {
     checkUidOwnerRuleForChain(DOZABLE, DOZABLE_MATCH);
     checkUidOwnerRuleForChain(STANDBY, STANDBY_MATCH);
     checkUidOwnerRuleForChain(POWERSAVE, POWERSAVE_MATCH);
-    ASSERT_EQ(-EINVAL, mTc.changeUidOwnerRule(NONE, TEST_UID, ALLOW, WHITELIST));
-    ASSERT_EQ(-EINVAL, mTc.changeUidOwnerRule(INVALID_CHAIN, TEST_UID, ALLOW, WHITELIST));
+    ASSERT_EQ(-EINVAL, mTc.changeUidOwnerRule(NONE, TEST_UID, ALLOW, ALLOWLIST));
+    ASSERT_EQ(-EINVAL, mTc.changeUidOwnerRule(INVALID_CHAIN, TEST_UID, ALLOW, ALLOWLIST));
 }
 
 TEST_F(TrafficControllerTest, TestReplaceUidOwnerMap) {
@@ -657,7 +657,7 @@ TEST_F(TrafficControllerTest, TestReplaceSameChain) {
     checkUidMapReplace("fw_dozable", newUids, DOZABLE_MATCH);
 }
 
-TEST_F(TrafficControllerTest, TestBlacklistUidMatch) {
+TEST_F(TrafficControllerTest, TestDenylistUidMatch) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
     std::vector<std::string> appStrUids = {"1000", "1001", "10012"};
@@ -669,7 +669,7 @@ TEST_F(TrafficControllerTest, TestBlacklistUidMatch) {
     expectMapEmpty(mFakeUidOwnerMap);
 }
 
-TEST_F(TrafficControllerTest, TestWhitelistUidMatch) {
+TEST_F(TrafficControllerTest, TestAllowlistUidMatch) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
     std::vector<std::string> appStrUids = {"1000", "1001", "10012"};
@@ -685,23 +685,23 @@ TEST_F(TrafficControllerTest, TestReplaceMatchUid) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
     std::vector<std::string> appStrUids = {"1000", "1001", "10012"};
-    // Add appStrUids to the blacklist and expect that their values are all PENALTY_BOX_MATCH.
+    // Add appStrUids to the denylist and expect that their values are all PENALTY_BOX_MATCH.
     ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpInsert)));
     expectUidOwnerMapValues(appStrUids, PENALTY_BOX_MATCH, 0);
 
-    // Add the same UIDs to the whitelist and expect that we get PENALTY_BOX_MATCH |
+    // Add the same UIDs to the allowlist and expect that we get PENALTY_BOX_MATCH |
     // HAPPY_BOX_MATCH.
     ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpInsert)));
     expectUidOwnerMapValues(appStrUids, HAPPY_BOX_MATCH | PENALTY_BOX_MATCH, 0);
 
-    // Remove the same UIDs from the whitelist and check the PENALTY_BOX_MATCH is still there.
+    // Remove the same UIDs from the allowlist and check the PENALTY_BOX_MATCH is still there.
     ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpDelete)));
     expectUidOwnerMapValues(appStrUids, PENALTY_BOX_MATCH, 0);
 
-    // Remove the same UIDs from the blacklist and check the map is empty.
+    // Remove the same UIDs from the denylist and check the map is empty.
     ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpDelete)));
     ASSERT_FALSE(mFakeUidOwnerMap.getFirstKey().ok());
@@ -716,15 +716,15 @@ TEST_F(TrafficControllerTest, TestDeleteWrongMatchSilentlyFails) {
                                             BandwidthController::IptOpDelete)));
     expectMapEmpty(mFakeUidOwnerMap);
 
-    // Add blacklist rules for appStrUids.
+    // Add denylist rules for appStrUids.
     ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpInsert)));
     expectUidOwnerMapValues(appStrUids, HAPPY_BOX_MATCH, 0);
 
-    // Delete (non-existent) blacklist rules for appStrUids, and check that this silently does
-    // nothing if the uid is in the map but does not have blacklist match. This is required because
-    // NetworkManagementService will try to remove a uid from blacklist after adding it to the
-    // whitelist and if the remove fails it will not update the uid status.
+    // Delete (non-existent) denylist rules for appStrUids, and check that this silently does
+    // nothing if the uid is in the map but does not have denylist match. This is required because
+    // NetworkManagementService will try to remove a uid from denylist after adding it to the
+    // allowlist and if the remove fails it will not update the uid status.
     ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpDelete)));
     expectUidOwnerMapValues(appStrUids, HAPPY_BOX_MATCH, 0);
