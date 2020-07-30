@@ -97,7 +97,7 @@ class TrafficController {
 
     int removeUidOwnerRule(const uid_t uid);
 
-    int replaceUidOwnerMap(const std::string& name, bool isWhitelist,
+    int replaceUidOwnerMap(const std::string& name, bool isAllowlist,
                            const std::vector<int32_t>& uids);
 
     netdutils::Status updateOwnerMapEntry(UidOwnerMatchType match, uid_t uid, FirewallRule rule,

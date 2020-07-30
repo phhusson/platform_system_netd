@@ -222,7 +222,7 @@ TEST_F(NetdBinderTest, FirewallReplaceUidChain) {
 
     bool ret;
     {
-        TimedOperation op(StringPrintf("Programming %d-UID whitelist chain", kNumUids));
+        TimedOperation op(StringPrintf("Programming %d-UID allowlist chain", kNumUids));
         mNetd->firewallReplaceUidChain(chainName, true, uids, &ret);
     }
     EXPECT_EQ(true, ret);
@@ -231,7 +231,7 @@ TEST_F(NetdBinderTest, FirewallReplaceUidChain) {
     EXPECT_EQ(true, iptablesNoSocketAllowRuleExists(chainName.c_str()));
     EXPECT_EQ(true, iptablesEspAllowRuleExists(chainName.c_str()));
     {
-        TimedOperation op("Clearing whitelist chain");
+        TimedOperation op("Clearing allowlist chain");
         mNetd->firewallReplaceUidChain(chainName, false, noUids, &ret);
     }
     EXPECT_EQ(true, ret);
@@ -239,7 +239,7 @@ TEST_F(NetdBinderTest, FirewallReplaceUidChain) {
     EXPECT_EQ(5, iptablesRuleLineLength(IP6TABLES_PATH, chainName.c_str()));
 
     {
-        TimedOperation op(StringPrintf("Programming %d-UID blacklist chain", kNumUids));
+        TimedOperation op(StringPrintf("Programming %d-UID denylist chain", kNumUids));
         mNetd->firewallReplaceUidChain(chainName, false, uids, &ret);
     }
     EXPECT_EQ(true, ret);
@@ -249,7 +249,7 @@ TEST_F(NetdBinderTest, FirewallReplaceUidChain) {
     EXPECT_EQ(false, iptablesEspAllowRuleExists(chainName.c_str()));
 
     {
-        TimedOperation op("Clearing blacklist chain");
+        TimedOperation op("Clearing denylist chain");
         mNetd->firewallReplaceUidChain(chainName, false, noUids, &ret);
     }
     EXPECT_EQ(true, ret);
@@ -2285,7 +2285,7 @@ constexpr char FIREWALL_STANDBY[] = "fw_standby";
 constexpr char targetReturn[] = "RETURN";
 constexpr char targetDrop[] = "DROP";
 
-void expectFirewallWhitelistMode() {
+void expectFirewallAllowlistMode() {
     static const char dropRule[] = "DROP       all";
     static const char rejectRule[] = "REJECT     all";
     for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH}) {
@@ -2295,7 +2295,7 @@ void expectFirewallWhitelistMode() {
     }
 }
 
-void expectFirewallBlacklistMode() {
+void expectFirewallDenylistMode() {
     for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH}) {
         EXPECT_EQ(2, iptablesRuleLineLength(binary, FIREWALL_INPUT));
         EXPECT_EQ(2, iptablesRuleLineLength(binary, FIREWALL_OUTPUT));
@@ -2443,28 +2443,28 @@ void expectFirewallChildChainsLastRuleDoesNotExist(const char* chainRule) {
 TEST_F(NetdBinderTest, FirewallSetFirewallType) {
     binder::Status status = mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallWhitelistMode();
+    expectFirewallAllowlistMode();
 
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallBlacklistMode();
+    expectFirewallDenylistMode();
 
     // set firewall type blacklist twice
     mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallBlacklistMode();
+    expectFirewallDenylistMode();
 
     // set firewall type whitelist twice
     mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallWhitelistMode();
+    expectFirewallAllowlistMode();
 
     // reset firewall type to default
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallBlacklistMode();
+    expectFirewallDenylistMode();
 }
 
 TEST_F(NetdBinderTest, FirewallSetInterfaceRule) {
@@ -2490,7 +2490,7 @@ TEST_F(NetdBinderTest, FirewallSetInterfaceRule) {
     // reset firewall mode to default
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallBlacklistMode();
+    expectFirewallDenylistMode();
 }
 
 TEST_F(NetdBinderTest, FirewallSetUidRule) {
@@ -2549,7 +2549,7 @@ TEST_F(NetdBinderTest, FirewallSetUidRule) {
     // set firewall type whitelist twice
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallWhitelistMode();
+    expectFirewallAllowlistMode();
 
     // None allow in WHITELIST
     status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_NONE, uid, INetd::FIREWALL_RULE_ALLOW);
@@ -2566,7 +2566,7 @@ TEST_F(NetdBinderTest, FirewallSetUidRule) {
     // reset firewall mode to default
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallBlacklistMode();
+    expectFirewallDenylistMode();
 }
 
 TEST_F(NetdBinderTest, FirewallEnableDisableChildChains) {
