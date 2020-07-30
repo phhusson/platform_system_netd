@@ -268,9 +268,11 @@ binder::Status NetdNativeService::isAlive(bool *alive) {
 }
 
 binder::Status NetdNativeService::firewallReplaceUidChain(const std::string& chainName,
-        bool isWhitelist, const std::vector<int32_t>& uids, bool *ret) {
+                                                          bool isAllowlist,
+                                                          const std::vector<int32_t>& uids,
+                                                          bool* ret) {
     NETD_LOCKING_RPC(gCtls->firewallCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-    int err = gCtls->firewallCtrl.replaceUidChain(chainName, isWhitelist, uids);
+    int err = gCtls->firewallCtrl.replaceUidChain(chainName, isAllowlist, uids);
     *ret = (err == 0);
     return binder::Status::ok();
 }

@@ -96,12 +96,12 @@ const std::string ACCOUNT_RULES_WITH_BPF =
         "\n"
         "-A bw_costly_shared -j bw_penalty_box\n" +
         StringPrintf("-I bw_penalty_box -m bpf --object-pinned %s -j REJECT\n",
-                     XT_BPF_BLACKLIST_PROG_PATH) +
+                     XT_BPF_DENYLIST_PROG_PATH) +
         "-A bw_penalty_box -j bw_happy_box\n"
         "-A bw_happy_box -j bw_data_saver\n"
         "-A bw_data_saver -j RETURN\n" +
         StringPrintf("-I bw_happy_box -m bpf --object-pinned %s -j RETURN\n",
-                     XT_BPF_WHITELIST_PROG_PATH) +
+                     XT_BPF_ALLOWLIST_PROG_PATH) +
         "COMMIT\n"
         "*raw\n"
         "-A bw_raw_PREROUTING -i ipsec+ -j RETURN\n"

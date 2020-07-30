@@ -747,9 +747,9 @@ int NdcDispatcher::FirewallCmd::parseRule(const char* arg) {
 }
 
 int NdcDispatcher::FirewallCmd::parseFirewallType(const char* arg) {
-    if (!strcmp(arg, "whitelist")) {
+    if (!strcmp(arg, "allowlist")) {
         return INetd::FIREWALL_WHITELIST;
-    } else if (!strcmp(arg, "blacklist")) {
+    } else if (!strcmp(arg, "denylist")) {
         return INetd::FIREWALL_BLACKLIST;
     } else {
         LOG(LOGLEVEL) << "failed to parse firewall type " << arg;
@@ -781,7 +781,7 @@ int NdcDispatcher::FirewallCmd::runCommand(NdcClient* cli, int argc, char** argv
     if (!strcmp(argv[1], "enable")) {
         if (argc != 3) {
             cli->sendMsg(ResponseCode::CommandSyntaxError,
-                         "Usage: firewall enable <whitelist|blacklist>", false);
+                         "Usage: firewall enable <allowlist|denylist>", false);
             return 0;
         }
         int res = !mNetd->firewallSetFirewallType(parseFirewallType(argv[2])).isOk();
