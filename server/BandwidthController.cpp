@@ -120,12 +120,12 @@ const char NICE_CHAIN[] = "bw_happy_box";
  *      iptables -A bw_costly_iface0 -j bw_penalty_box
  *
  * * Penalty box, happy box and data saver.
- *   - bw_penalty box is a blacklist of apps that are rejected.
- *   - bw_happy_box is a whitelist of apps. It always includes all system apps
+ *   - bw_penalty box is a denylist of apps that are rejected.
+ *   - bw_happy_box is an allowlist of apps. It always includes all system apps
  *   - bw_data_saver implements data usage restrictions.
- *   - Via the UI the user can add and remove apps from the whitelist and
- *     blacklist, and turn on/off data saver.
- *   - The blacklist takes precedence over the whitelist and the whitelist
+ *   - Via the UI the user can add and remove apps from the allowlist and
+ *     denylist, and turn on/off data saver.
+ *   - The denylist takes precedence over the allowlist and the allowlist
  *     takes precedence over data saver.
  *
  * * bw_penalty_box handling:
@@ -149,12 +149,12 @@ const char NICE_CHAIN[] = "bw_happy_box";
  */
 
 const std::string COMMIT_AND_CLOSE = "COMMIT\n";
-const std::string HAPPY_BOX_MATCH_WHITELIST_COMMAND =
+const std::string HAPPY_BOX_MATCH_ALLOWLIST_COMMAND =
         StringPrintf("-I bw_happy_box -m owner --uid-owner %d-%d -j RETURN", 0, MAX_SYSTEM_UID);
-const std::string BPF_HAPPY_BOX_MATCH_WHITELIST_COMMAND = StringPrintf(
-        "-I bw_happy_box -m bpf --object-pinned %s -j RETURN", XT_BPF_WHITELIST_PROG_PATH);
-const std::string BPF_PENALTY_BOX_MATCH_BLACKLIST_COMMAND = StringPrintf(
-        "-I bw_penalty_box -m bpf --object-pinned %s -j REJECT", XT_BPF_BLACKLIST_PROG_PATH);
+const std::string BPF_HAPPY_BOX_MATCH_ALLOWLIST_COMMAND = StringPrintf(
+        "-I bw_happy_box -m bpf --object-pinned %s -j RETURN", XT_BPF_ALLOWLIST_PROG_PATH);
+const std::string BPF_PENALTY_BOX_MATCH_DENYLIST_COMMAND = StringPrintf(
+        "-I bw_penalty_box -m bpf --object-pinned %s -j REJECT", XT_BPF_DENYLIST_PROG_PATH);
 
 static const std::vector<std::string> IPT_FLUSH_COMMANDS = {
         /*
@@ -240,10 +240,10 @@ std::vector<std::string> getBasicAccountingCommands(const bool useBpf) {
             useBpf ? "" : "-A bw_OUTPUT -m owner --socket-exists",
 
             "-A bw_costly_shared -j bw_penalty_box",
-            useBpf ? BPF_PENALTY_BOX_MATCH_BLACKLIST_COMMAND : "",
+            useBpf ? BPF_PENALTY_BOX_MATCH_DENYLIST_COMMAND : "",
             "-A bw_penalty_box -j bw_happy_box", "-A bw_happy_box -j bw_data_saver",
             "-A bw_data_saver -j RETURN",
-            useBpf ? BPF_HAPPY_BOX_MATCH_WHITELIST_COMMAND : HAPPY_BOX_MATCH_WHITELIST_COMMAND,
+            useBpf ? BPF_HAPPY_BOX_MATCH_ALLOWLIST_COMMAND : HAPPY_BOX_MATCH_ALLOWLIST_COMMAND,
             "COMMIT",
 
             "*raw",
