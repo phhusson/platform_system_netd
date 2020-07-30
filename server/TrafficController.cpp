@@ -521,9 +521,9 @@ int TrafficController::addInterface(const char* name, uint32_t ifaceIndex) {
 Status TrafficController::updateOwnerMapEntry(UidOwnerMatchType match, uid_t uid, FirewallRule rule,
                                               FirewallType type) {
     std::lock_guard guard(mMutex);
-    if ((rule == ALLOW && type == WHITELIST) || (rule == DENY && type == BLACKLIST)) {
+    if ((rule == ALLOW && type == ALLOWLIST) || (rule == DENY && type == DENYLIST)) {
         RETURN_IF_NOT_OK(addRule(uid, match));
-    } else if ((rule == ALLOW && type == BLACKLIST) || (rule == DENY && type == WHITELIST)) {
+    } else if ((rule == ALLOW && type == DENYLIST) || (rule == DENY && type == ALLOWLIST)) {
         RETURN_IF_NOT_OK(removeRule(uid, match));
     } else {
         //Cannot happen.
@@ -703,10 +703,10 @@ Status TrafficController::removeUidInterfaceRules(const std::vector<int32_t>& ui
     return netdutils::status::ok;
 }
 
-int TrafficController::replaceUidOwnerMap(const std::string& name, bool isWhitelist __unused,
+int TrafficController::replaceUidOwnerMap(const std::string& name, bool isAllowlist __unused,
                                           const std::vector<int32_t>& uids) {
-    // FirewallRule rule = isWhitelist ? ALLOW : DENY;
-    // FirewallType type = isWhitelist ? WHITELIST : BLACKLIST;
+    // FirewallRule rule = isAllowlist ? ALLOW : DENY;
+    // FirewallType type = isAllowlist ? ALLOWLIST : DENYLIST;
     Status res;
     if (!name.compare(FirewallController::LOCAL_DOZABLE)) {
         res = replaceRulesInMap(DOZABLE_MATCH, uids);
@@ -926,10 +926,10 @@ void TrafficController::dump(DumpWriter& dw, bool verbose) {
                getProgramStatus(XT_BPF_INGRESS_PROG_PATH).c_str());
     dw.println("xt_bpf egress program status: %s",
                getProgramStatus(XT_BPF_EGRESS_PROG_PATH).c_str());
-    dw.println("xt_bpf bandwidth whitelist program status: %s",
-               getProgramStatus(XT_BPF_WHITELIST_PROG_PATH).c_str());
-    dw.println("xt_bpf bandwidth blacklist program status: %s",
-               getProgramStatus(XT_BPF_BLACKLIST_PROG_PATH).c_str());
+    dw.println("xt_bpf bandwidth allowlist program status: %s",
+               getProgramStatus(XT_BPF_ALLOWLIST_PROG_PATH).c_str());
+    dw.println("xt_bpf bandwidth denylist program status: %s",
+               getProgramStatus(XT_BPF_DENYLIST_PROG_PATH).c_str());
 
     if (!verbose) {
         return;
