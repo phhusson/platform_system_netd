@@ -205,7 +205,7 @@ static inline int bpf_owner_match(struct __sk_buff* skb, uint32_t uid, int direc
         }
     }
     if (direction == BPF_INGRESS && (uidRules & IIF_MATCH)) {
-        // Drops packets not coming from lo nor the whitelisted interface
+        // Drops packets not coming from lo nor the allowlisted interface
         if (allowed_iif && skb->ifindex != 1 && skb->ifindex != allowed_iif) {
             return BPF_DROP_UNLESS_DNS;
         }
@@ -315,7 +315,7 @@ DEFINE_BPF_PROG("skfilter/ingress/xtbpf", AID_ROOT, AID_NET_ADMIN, xt_bpf_ingres
     return BPF_MATCH;
 }
 
-DEFINE_BPF_PROG("skfilter/whitelist/xtbpf", AID_ROOT, AID_NET_ADMIN, xt_bpf_whitelist_prog)
+DEFINE_BPF_PROG("skfilter/allowlist/xtbpf", AID_ROOT, AID_NET_ADMIN, xt_bpf_allowlist_prog)
 (struct __sk_buff* skb) {
     uint32_t sock_uid = bpf_get_socket_uid(skb);
     if (is_system_uid(sock_uid)) return BPF_MATCH;
@@ -327,16 +327,16 @@ DEFINE_BPF_PROG("skfilter/whitelist/xtbpf", AID_ROOT, AID_NET_ADMIN, xt_bpf_whit
     if ((sock_uid == 65534) && !bpf_get_socket_cookie(skb) && is_received_skb(skb))
         return BPF_MATCH;
 
-    UidOwnerValue* whitelistMatch = bpf_uid_owner_map_lookup_elem(&sock_uid);
-    if (whitelistMatch) return whitelistMatch->rule & HAPPY_BOX_MATCH ? BPF_MATCH : BPF_NOMATCH;
+    UidOwnerValue* allowlistMatch = bpf_uid_owner_map_lookup_elem(&sock_uid);
+    if (allowlistMatch) return allowlistMatch->rule & HAPPY_BOX_MATCH ? BPF_MATCH : BPF_NOMATCH;
     return BPF_NOMATCH;
 }
 
-DEFINE_BPF_PROG("skfilter/blacklist/xtbpf", AID_ROOT, AID_NET_ADMIN, xt_bpf_blacklist_prog)
+DEFINE_BPF_PROG("skfilter/denylist/xtbpf", AID_ROOT, AID_NET_ADMIN, xt_bpf_denylist_prog)
 (struct __sk_buff* skb) {
     uint32_t sock_uid = bpf_get_socket_uid(skb);
-    UidOwnerValue* blacklistMatch = bpf_uid_owner_map_lookup_elem(&sock_uid);
-    if (blacklistMatch) return blacklistMatch->rule & PENALTY_BOX_MATCH ? BPF_MATCH : BPF_NOMATCH;
+    UidOwnerValue* denylistMatch = bpf_uid_owner_map_lookup_elem(&sock_uid);
+    if (denylistMatch) return denylistMatch->rule & PENALTY_BOX_MATCH ? BPF_MATCH : BPF_NOMATCH;
     return BPF_NOMATCH;
 }
 
