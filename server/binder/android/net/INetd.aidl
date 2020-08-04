@@ -988,7 +988,7 @@ interface INetd {
     const int FIREWALL_ALLOWLIST = 0;
 
     /** Blocks packets from specific UID/Interface. Deprecated, use FIREWALL_DENYLIST. */
-    const @JavaPassthrough(annotation="@Deprecated")int FIREWALL_BLACKLIST = 1;
+    const @JavaPassthrough(annotation="@Deprecated") int FIREWALL_BLACKLIST = 1;
 
     /** Blocks packets from specific UID/Interface. */
     const int FIREWALL_DENYLIST = 1;
