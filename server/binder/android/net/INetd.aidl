@@ -981,10 +981,17 @@ interface INetd {
     */
     boolean networkCanProtect(int uid);
 
-    // Whitelist only allows packets from specific UID/Interface
-    const int FIREWALL_WHITELIST = 0;
-    // Blacklist blocks packets from specific UID/Interface
-    const int FIREWALL_BLACKLIST = 1;
+    /** Only allows packets from specific UID/Interface. Deprecated, use FIREWALL_ALLOWLIST. */
+    const @JavaPassthrough(annotation="@Deprecated") int FIREWALL_WHITELIST = 0;
+
+    /** Only allows packets from specific UID/Interface. */
+    const int FIREWALL_ALLOWLIST = 0;
+
+    /** Blocks packets from specific UID/Interface. Deprecated, use FIREWALL_DENYLIST. */
+    const @JavaPassthrough(annotation="@Deprecated") int FIREWALL_BLACKLIST = 1;
+
+    /** Blocks packets from specific UID/Interface. */
+    const int FIREWALL_DENYLIST = 1;
 
    /**
     * Set type of firewall
