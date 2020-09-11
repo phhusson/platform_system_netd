@@ -16,7 +16,7 @@ cc_benchmark {
         "dnsresolver_aidl_interface-unstable-ndk_platform",
         "netd_aidl_interface-cpp", //  system/netd/server/UidRanges.h
         "netd_aidl_interface-ndk_platform",
-        "netd_event_listener_interface-ndk_platform",
+        "netd_event_listener_interface-unstable-ndk_platform",
     ],
     aidl: {
         include_dirs: ["system/netd/server/binder"],
