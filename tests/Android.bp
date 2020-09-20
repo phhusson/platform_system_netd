@@ -86,6 +86,7 @@ cc_test {
         "libnetutils",
         "libprocessgroup",
         "libssl",
+        "libsysutils",
         "libutils",
     ],
     static_libs: [

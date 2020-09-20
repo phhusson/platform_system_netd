@@ -171,7 +171,6 @@ cc_binary {
         "bpfloader",
         "clatd.o",
         "netd.o",
-        "offload.o",
     ],
     shared_libs: [
         "android.system.net.netd@1.0",
@@ -307,4 +306,5 @@ cc_test {
         "libsysutils",
         "libutils",
     ],
+    // tidy: false,  // cuts test build time by almost 1 minute
 }
