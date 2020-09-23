@@ -53,6 +53,13 @@ aidl_interface {
             ],
             min_sdk_version: "29",
         },
+        java: {
+            apex_available: [
+                "//apex_available:platform",
+                "com.android.bluetooth.updatable",
+                "com.android.wifi",
+            ],
+        },
     },
 }
 
