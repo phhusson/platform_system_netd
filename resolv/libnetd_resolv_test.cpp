@@ -506,8 +506,9 @@ std::string resolvResNsendHelper(const android_net_context* _Nonnull netContext,
     std::vector<uint8_t> msg(MAXPACKET, 0);
     const int msgLen = res_mkquery(ns_o_query, host, ns_c_in, nsType, nullptr, 0, nullptr,
                                    msg.data(), MAXPACKET);
+    NetworkDnsEventReported event;
     const int nsendAns = resolv_res_nsend(netContext, msg.data(), msgLen, ansBuf.data(), MAXPACKET,
-                                          &rcode, static_cast<ResNsendFlags>(flag));
+                                          &rcode, static_cast<ResNsendFlags>(flag), &event);
     return toString(ansBuf.data(), nsendAns, (nsType == ns_t_a) ? AF_INET : AF_INET6);
 }
 
