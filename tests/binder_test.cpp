@@ -24,7 +24,10 @@
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
+#include <regex>
 #include <set>
+#include <string>
+#include <thread>
 #include <vector>
 
 #include <dirent.h>
@@ -57,6 +60,7 @@
 #include <gtest/gtest.h>
 #include <netdbpf/bpf_shared.h>
 #include <netutils/ifc.h>
+#include <utils/Errors.h>
 #include "Fwmark.h"
 #include "InterfaceController.h"
 #include "NetdClient.h"
@@ -90,6 +94,7 @@ using android::String16;
 using android::String8;
 using android::base::Join;
 using android::base::make_scope_guard;
+using android::base::ReadFdToString;
 using android::base::ReadFileToString;
 using android::base::StartsWith;
 using android::base::StringPrintf;
@@ -113,6 +118,7 @@ static const char* IP_RULE_V4 = "-4";
 static const char* IP_RULE_V6 = "-6";
 static const int TEST_NETID1 = 65501;
 static const int TEST_NETID2 = 65502;
+static const int TEST_DUMP_NETID = 65123;
 static const char* DNSMASQ = "dnsmasq";
 
 // Use maximum reserved appId for applications to avoid conflict with existing
@@ -3752,4 +3758,109 @@ TEST_F(NetdBinderTest, TetherOffloadForwarding) {
     EXPECT_TRUE(mNetd->tetherInterfaceRemove(tap.name()).isOk());
     EXPECT_TRUE(mNetd->networkRemoveInterface(INetd::LOCAL_NET_ID, tap.name()).isOk());
     EXPECT_TRUE(mNetd->networkRemoveInterface(TEST_NETID1, sTun.name()).isOk());
+}
+
+namespace {
+
+std::vector<std::string> dumpService(const sp<IBinder>& binder) {
+    unique_fd localFd, remoteFd;
+    bool success = Pipe(&localFd, &remoteFd);
+    EXPECT_TRUE(success) << "Failed to open pipe for dumping: " << strerror(errno);
+    if (!success) return {};
+
+    // dump() blocks until another thread has consumed all its output.
+    std::thread dumpThread = std::thread([binder, remoteFd{std::move(remoteFd)}]() {
+        android::status_t ret = binder->dump(remoteFd, {});
+        EXPECT_EQ(android::OK, ret) << "Error dumping service: " << android::statusToString(ret);
+    });
+
+    std::string dumpContent;
+
+    EXPECT_TRUE(ReadFdToString(localFd.get(), &dumpContent))
+            << "Error during dump: " << strerror(errno);
+    dumpThread.join();
+
+    std::stringstream dumpStream(std::move(dumpContent));
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(dumpStream, line)) {
+        lines.push_back(line);
+    }
+
+    return lines;
+}
+
+}  // namespace
+
+TEST_F(NetdBinderTest, TestServiceDump) {
+    sp<IBinder> binder = INetd::asBinder(mNetd);
+    ASSERT_NE(nullptr, binder);
+
+    struct TestData {
+        // Expected contents of the dump command.
+        const std::string output;
+        // A regex that might be helpful in matching relevant lines in the output.
+        // Used to make it easier to add test cases for this code.
+        const std::string hintRegex;
+    };
+    std::vector<TestData> testData;
+
+    // Send some IPCs and for each one add an element to testData telling us what to expect.
+    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_DUMP_NETID, INetd::PERMISSION_NONE).isOk());
+    testData.push_back({"networkCreatePhysical(65123, 0)", "networkCreatePhysical.*65123"});
+
+    EXPECT_EQ(EEXIST, mNetd->networkCreatePhysical(TEST_DUMP_NETID, INetd::PERMISSION_NONE)
+                              .serviceSpecificErrorCode());
+    testData.push_back(
+            {"networkCreatePhysical(65123, 0) -> ServiceSpecificException(17, \"File exists\")",
+             "networkCreatePhysical.*65123.*17"});
+
+    EXPECT_TRUE(mNetd->networkAddInterface(TEST_DUMP_NETID, sTun.name()).isOk());
+    testData.push_back({StringPrintf("networkAddInterface(65123, \"%s\")", sTun.name().c_str()),
+                        StringPrintf("networkAddInterface.*65123.*%s", sTun.name().c_str())});
+
+    android::net::RouteInfoParcel parcel;
+    parcel.ifName = sTun.name();
+    parcel.destination = "2001:db8:dead:beef::/64";
+    parcel.nextHop = "fe80::dead:beef";
+    parcel.mtu = 1234;
+    EXPECT_TRUE(mNetd->networkAddRouteParcel(TEST_DUMP_NETID, parcel).isOk());
+    testData.push_back(
+            {StringPrintf("networkAddRouteParcel(65123, \"RouteInfoParcel{destination:"
+                          " 2001:db8:dead:beef::/64, ifName: %s, nextHop: fe80::dead:beef,"
+                          " mtu: 1234}\")",
+                          sTun.name().c_str()),
+             "networkAddRouteParcel.*65123.*dead:beef"});
+
+    EXPECT_TRUE(mNetd->networkDestroy(TEST_DUMP_NETID).isOk());
+    testData.push_back({"networkDestroy(65123)", "networkDestroy.*65123"});
+
+    // Send the service dump request to netd.
+    std::vector<std::string> lines = dumpService(binder);
+
+    // Basic regexp to match dump output lines. Matches the beginning and end of the line, and
+    // puts the output of the command itself into the first match group.
+    // Example: "      11-05 00:23:39.481 myCommand(args) <2.02ms>".
+    const std::basic_regex lineRegex(
+            "^      [0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3} "
+            "(.*)"
+            " <[0-9]+[.][0-9]{2}ms>$");
+
+    // For each element of testdata, check that the expected output appears in the dump output.
+    // If not, fail the test and use hintRegex to print similar lines to assist in debugging.
+    for (const TestData& td : testData) {
+        const bool found = std::any_of(lines.begin(), lines.end(), [&](const std::string& line) {
+            std::smatch match;
+            if (!std::regex_match(line, match, lineRegex)) return false;
+            return (match.size() == 2) && (match[1].str() == td.output);
+        });
+        EXPECT_TRUE(found) << "Didn't find line '" << td.output << "' in dumpsys output.";
+        if (found) continue;
+        std::cerr << "Similar lines" << std::endl;
+        for (const auto& line : lines) {
+            if (std::regex_search(line, std::basic_regex(td.hintRegex))) {
+                std::cerr << line;
+            }
+        }
+    }
 }
