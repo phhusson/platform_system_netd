@@ -3859,7 +3859,7 @@ TEST_F(NetdBinderTest, TestServiceDump) {
         std::cerr << "Similar lines" << std::endl;
         for (const auto& line : lines) {
             if (std::regex_search(line, std::basic_regex(td.hintRegex))) {
-                std::cerr << line;
+                std::cerr << line << std::endl;
             }
         }
     }
