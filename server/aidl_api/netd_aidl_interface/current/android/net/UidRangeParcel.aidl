@@ -17,6 +17,7 @@
 
 package android.net;
 /* @hide */
+@JavaDerive(equals=true, toString=true) @JavaOnlyImmutable
 parcelable UidRangeParcel {
   int start;
   int stop;
