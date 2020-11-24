@@ -93,9 +93,19 @@ bool Network::appliesToUser(uid_t uid) const {
 }
 
 int Network::addUsers(const UidRanges& uidRanges) {
+    // TODO: have a checker ensuring uidRanges does not overlap with itself or the existing one.
     for (const std::string& interface : mInterfaces) {
-        if (int ret = RouteController::addUsersToVirtualNetwork(mNetId, interface.c_str(), mSecure,
-                                                                uidRanges)) {
+        int ret;
+        if (isVirtual()) {
+            ret = RouteController::addUsersToVirtualNetwork(mNetId, interface.c_str(), mSecure,
+                                                            uidRanges);
+        } else if (isPhysical()) {
+            ret = RouteController::addUsersToPhysicalNetwork(mNetId, interface.c_str(), uidRanges);
+        } else {
+            ALOGE("failed to add users. Invalid network type %d, netId %d", getType(), mNetId);
+            return -EINVAL;
+        }
+        if (ret) {
             ALOGE("failed to add users on interface %s of netId %u", interface.c_str(), mNetId);
             return ret;
         }
@@ -106,8 +116,18 @@ int Network::addUsers(const UidRanges& uidRanges) {
 
 int Network::removeUsers(const UidRanges& uidRanges) {
     for (const std::string& interface : mInterfaces) {
-        if (int ret = RouteController::removeUsersFromVirtualNetwork(mNetId, interface.c_str(),
-                                                                     mSecure, uidRanges)) {
+        int ret;
+        if (isVirtual()) {
+            ret = RouteController::removeUsersFromVirtualNetwork(mNetId, interface.c_str(), mSecure,
+                                                                 uidRanges);
+        } else if (isPhysical()) {
+            ret = RouteController::removeUsersFromPhysicalNetwork(mNetId, interface.c_str(),
+                                                                  uidRanges);
+        } else {
+            ALOGE("failed to remove users. Invalid network type %d, netId %d", getType(), mNetId);
+            return -EINVAL;
+        }
+        if (ret) {
             ALOGE("failed to remove users on interface %s of netId %u", interface.c_str(), mNetId);
             return ret;
         }

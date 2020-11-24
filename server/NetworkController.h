@@ -22,6 +22,7 @@
 
 #include "NetdConstants.h"
 #include "Permission.h"
+#include "PhysicalNetwork.h"
 #include "android/net/INetd.h"
 #include "netdutils/DumpWriter.h"
 
@@ -158,6 +159,7 @@ public:
     bool canProtectLocked(uid_t uid) const;
     bool isVirtualNetworkLocked(unsigned netId) const;
     VirtualNetwork* getVirtualNetworkForUserLocked(uid_t uid) const;
+    PhysicalNetwork* getPhysicalNetworkForUserLocked(uid_t uid) const;
     Permission getPermissionForUserLocked(uid_t uid) const;
     int checkUserNetworkAccessLocked(uid_t uid, unsigned netId) const;
     [[nodiscard]] int createPhysicalNetworkLocked(unsigned netId, Permission permission);
