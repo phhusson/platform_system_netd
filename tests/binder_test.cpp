@@ -3816,7 +3816,7 @@ TEST_F(NetdBinderTest, TestServiceDump) {
              "networkCreatePhysical.*65123.*17"});
 
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_DUMP_NETID, sTun.name()).isOk());
-    testData.push_back({StringPrintf("networkAddInterface(65123, \"%s\")", sTun.name().c_str()),
+    testData.push_back({StringPrintf("networkAddInterface(65123, %s)", sTun.name().c_str()),
                         StringPrintf("networkAddInterface.*65123.*%s", sTun.name().c_str())});
 
     android::net::RouteInfoParcel parcel;
@@ -3826,9 +3826,9 @@ TEST_F(NetdBinderTest, TestServiceDump) {
     parcel.mtu = 1234;
     EXPECT_TRUE(mNetd->networkAddRouteParcel(TEST_DUMP_NETID, parcel).isOk());
     testData.push_back(
-            {StringPrintf("networkAddRouteParcel(65123, \"RouteInfoParcel{destination:"
+            {StringPrintf("networkAddRouteParcel(65123, RouteInfoParcel{destination:"
                           " 2001:db8:dead:beef::/64, ifName: %s, nextHop: fe80::dead:beef,"
-                          " mtu: 1234}\")",
+                          " mtu: 1234})",
                           sTun.name().c_str()),
              "networkAddRouteParcel.*65123.*dead:beef"});
 
