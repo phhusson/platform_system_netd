@@ -188,7 +188,6 @@ cc_binary {
         "libcutils",
         "libdl",
         "libhidlbase",
-        "libjsoncpp",
         "liblog",
         "libmdnssd",
         "libnetd_resolv",
