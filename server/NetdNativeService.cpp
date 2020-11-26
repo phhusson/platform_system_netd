@@ -170,8 +170,9 @@ bool contains(const Vector<String16>& words, const String16& word) {
 
 NetdNativeService::NetdNativeService() {
     // register log callback to BnNetd::logFunc
-    BnNetd::logFunc = std::bind(binderCallLogFn, std::placeholders::_1,
-                                [](const std::string& msg) { gLog.info("%s", msg.c_str()); });
+    BnNetd::logFunc = [](const auto& log) {
+        binderCallLogFn(log, [](const std::string& msg) { gLog.info("%s", msg.c_str()); });
+    };
 }
 
 status_t NetdNativeService::start() {
