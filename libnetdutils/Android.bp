@@ -44,7 +44,6 @@ cc_test {
         "InternetAddressesTest.cpp",
         "LogTest.cpp",
         "MemBlockTest.cpp",
-        "OperationLimiterTest.cpp",
         "SliceTest.cpp",
         "StatusTest.cpp",
         "SyscallsTest.cpp",
