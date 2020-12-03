@@ -156,6 +156,7 @@ interface INetd {
   const int FIREWALL_CHAIN_DOZABLE = 1;
   const int FIREWALL_CHAIN_STANDBY = 2;
   const int FIREWALL_CHAIN_POWERSAVE = 3;
+  const int FIREWALL_CHAIN_RESTRICTED = 4;
   const String IF_STATE_UP = "up";
   const String IF_STATE_DOWN = "down";
   const String IF_FLAG_BROADCAST = "broadcast";

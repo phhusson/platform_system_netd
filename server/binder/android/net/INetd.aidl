@@ -1017,6 +1017,9 @@ interface INetd {
     const int FIREWALL_CHAIN_STANDBY = 2;
     // Specify POWERSAVE chain(fw_powersave) which is used in power save mode
     const int FIREWALL_CHAIN_POWERSAVE = 3;
+    // Specify RESTRICTED chain(fw_restricted) which is used in restricted
+    // networking mode
+    const int FIREWALL_CHAIN_RESTRICTED = 4;
 
    /**
     * Set firewall rule for interface
