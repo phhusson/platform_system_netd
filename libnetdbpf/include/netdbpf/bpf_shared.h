@@ -117,7 +117,8 @@ enum UidOwnerMatchType {
     DOZABLE_MATCH = (1 << 2),
     STANDBY_MATCH = (1 << 3),
     POWERSAVE_MATCH = (1 << 4),
-    IIF_MATCH = (1 << 5),
+    RESTRICTED_MATCH = (1 << 5),
+    IIF_MATCH = (1 << 6),
 };
 
 enum BpfPermissionMatch {
