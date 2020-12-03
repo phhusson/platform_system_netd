@@ -183,7 +183,7 @@ class TrafficController {
      * the map right now:
      * - Entry with UID_RULES_CONFIGURATION_KEY:
      *    Store the configuration for the current uid rules. It indicates the device
-     *    is in doze/powersave/standby mode.
+     *    is in doze/powersave/standby/restricted mode.
      * - Entry with CURRENT_STATS_MAP_CONFIGURATION_KEY:
      *    Stores the current live stats map that kernel program is writing to.
      *    Userspace can do scraping and cleaning job on the other one depending on the

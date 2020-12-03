@@ -634,6 +634,7 @@ TEST_F(TrafficControllerTest, TestChangeUidOwnerRule) {
     checkUidOwnerRuleForChain(DOZABLE, DOZABLE_MATCH);
     checkUidOwnerRuleForChain(STANDBY, STANDBY_MATCH);
     checkUidOwnerRuleForChain(POWERSAVE, POWERSAVE_MATCH);
+    checkUidOwnerRuleForChain(RESTRICTED, RESTRICTED_MATCH);
     ASSERT_EQ(-EINVAL, mTc.changeUidOwnerRule(NONE, TEST_UID, ALLOW, ALLOWLIST));
     ASSERT_EQ(-EINVAL, mTc.changeUidOwnerRule(INVALID_CHAIN, TEST_UID, ALLOW, ALLOWLIST));
 }
@@ -645,6 +646,7 @@ TEST_F(TrafficControllerTest, TestReplaceUidOwnerMap) {
     checkUidMapReplace("fw_dozable", uids, DOZABLE_MATCH);
     checkUidMapReplace("fw_standby", uids, STANDBY_MATCH);
     checkUidMapReplace("fw_powersave", uids, POWERSAVE_MATCH);
+    checkUidMapReplace("fw_restricted", uids, RESTRICTED_MATCH);
     ASSERT_EQ(-EINVAL, mTc.replaceUidOwnerMap("unknow", true, uids));
 }
 
