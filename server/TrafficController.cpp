@@ -100,6 +100,7 @@ const std::string uidMatchTypeToString(uint8_t match) {
     FLAG_MSG_TRANS(matchType, DOZABLE_MATCH, match);
     FLAG_MSG_TRANS(matchType, STANDBY_MATCH, match);
     FLAG_MSG_TRANS(matchType, POWERSAVE_MATCH, match);
+    FLAG_MSG_TRANS(matchType, RESTRICTED_MATCH, match);
     FLAG_MSG_TRANS(matchType, IIF_MATCH, match);
     if (match) {
         return StringPrintf("Unknown match: %u", match);
@@ -631,6 +632,9 @@ int TrafficController::changeUidOwnerRule(ChildChain chain, uid_t uid, FirewallR
         case POWERSAVE:
             res = updateOwnerMapEntry(POWERSAVE_MATCH, uid, rule, type);
             break;
+        case RESTRICTED:
+            res = updateOwnerMapEntry(RESTRICTED_MATCH, uid, rule, type);
+            break;
         case NONE:
         default:
             return -EINVAL;
@@ -714,6 +718,8 @@ int TrafficController::replaceUidOwnerMap(const std::string& name, bool isAllowl
         res = replaceRulesInMap(STANDBY_MATCH, uids);
     } else if (!name.compare(FirewallController::LOCAL_POWERSAVE)) {
         res = replaceRulesInMap(POWERSAVE_MATCH, uids);
+    } else if (!name.compare(FirewallController::LOCAL_RESTRICTED)) {
+        res = replaceRulesInMap(RESTRICTED_MATCH, uids);
     } else {
         ALOGE("unknown chain name: %s", name.c_str());
         return -EINVAL;
@@ -746,6 +752,9 @@ int TrafficController::toggleUidOwnerMap(ChildChain chain, bool enable) {
             break;
         case POWERSAVE:
             match = POWERSAVE_MATCH;
+            break;
+        case RESTRICTED:
+            match = RESTRICTED_MATCH;
             break;
         default:
             return -EINVAL;
