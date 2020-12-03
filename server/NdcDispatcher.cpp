@@ -764,6 +764,8 @@ int NdcDispatcher::FirewallCmd::parseChildChain(const char* arg) {
         return INetd::FIREWALL_CHAIN_STANDBY;
     } else if (!strcmp(arg, "powersave")) {
         return INetd::FIREWALL_CHAIN_POWERSAVE;
+    } else if (!strcmp(arg, "restricted")) {
+        return INetd::FIREWALL_CHAIN_RESTRICTED;
     } else if (!strcmp(arg, "none")) {
         return INetd::FIREWALL_CHAIN_NONE;
     } else {
