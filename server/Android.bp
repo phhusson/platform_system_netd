@@ -250,7 +250,7 @@ cc_binary {
         "libutils",
         "libbinder",
         "dnsresolver_aidl_interface-cpp",
-        "netd_aidl_interface-cpp",
+        "netd_aidl_interface-unstable-cpp",
     ],
     srcs: [
         "ndc.cpp",
