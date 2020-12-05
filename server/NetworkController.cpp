@@ -781,18 +781,23 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
     if (uid == INVALID_UID) {
         return -EREMOTEIO;
     }
+    // If the UID has PERMISSION_SYSTEM, it can use whatever network it wants.
     Permission userPermission = getPermissionForUserLocked(uid);
     if ((userPermission & PERMISSION_SYSTEM) == PERMISSION_SYSTEM) {
         return 0;
     }
+    // If the UID wants to use a VPN, it can do so if and only if the VPN applies to the UID.
     if (network->getType() == Network::VIRTUAL) {
         return static_cast<VirtualNetwork*>(network)->appliesToUser(uid) ? 0 : -EPERM;
     }
+    // If a VPN applies to the UID, and the VPN is secure (i.e., not bypassable), then the UID can
+    // only select a different network if it has the ability to protect its sockets.
     VirtualNetwork* virtualNetwork = getVirtualNetworkForUserLocked(uid);
     if (virtualNetwork && virtualNetwork->isSecure() &&
             mProtectableUsers.find(uid) == mProtectableUsers.end()) {
         return -EPERM;
     }
+    // Check whether the UID's permission bits are sufficient to use the network.
     Permission networkPermission = static_cast<PhysicalNetwork*>(network)->getPermission();
     return ((userPermission & networkPermission) == networkPermission) ? 0 : -EACCES;
 }
