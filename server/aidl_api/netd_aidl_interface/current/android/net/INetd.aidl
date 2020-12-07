@@ -19,7 +19,7 @@ package android.net;
 /* @hide */
 interface INetd {
   boolean isAlive();
-  boolean firewallReplaceUidChain(in @utf8InCpp String chainName, boolean isWhitelist, in int[] uids);
+  boolean firewallReplaceUidChain(in @utf8InCpp String chainName, boolean isAllowlist, in int[] uids);
   boolean bandwidthEnableDataSaver(boolean enable);
   void networkCreatePhysical(int netId, int permission);
   void networkCreateVpn(int netId, boolean secure);
