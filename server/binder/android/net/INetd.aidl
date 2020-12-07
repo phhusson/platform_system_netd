@@ -35,18 +35,18 @@ interface INetd {
     /**
      * Replaces the contents of the specified UID-based firewall chain.
      *
-     * The chain may be a whitelist chain or a blacklist chain. A blacklist chain contains DROP
-     * rules for the specified UIDs and a RETURN rule at the end. A whitelist chain contains RETURN
+     * The chain may be an allowlist chain or a denylist chain. A denylist chain contains DROP
+     * rules for the specified UIDs and a RETURN rule at the end. An allowlist chain contains RETURN
      * rules for the system UID range (0 to {@code UID_APP} - 1), RETURN rules for for the specified
      * UIDs, and a DROP rule at the end. The chain will be created if it does not exist.
      *
      * @param chainName The name of the chain to replace.
-     * @param isWhitelist Whether this is a whitelist or blacklist chain.
+     * @param isAllowlist Whether this is an allowlist or denylist chain.
      * @param uids The list of UIDs to allow/deny.
      * @return true if the chain was successfully replaced, false otherwise.
      */
     boolean firewallReplaceUidChain(in @utf8InCpp String chainName,
-                                    boolean isWhitelist,
+                                    boolean isAllowlist,
                                     in int[] uids);
 
     /**
@@ -995,10 +995,10 @@ interface INetd {
 
    /**
     * Set type of firewall
-    * Type whitelist only allows packets from specific UID/Interface
-    * Type blacklist blocks packets from specific UID/Interface
+    * Type allowlist only allows packets from specific UID/Interface
+    * Type denylist blocks packets from specific UID/Interface
     *
-    * @param firewalltype type of firewall, either FIREWALL_WHITELIST or FIREWALL_BLACKLIST
+    * @param firewalltype type of firewall, either FIREWALL_ALLOWLIST or FIREWALL_DENYLIST
     * @throws ServiceSpecificException in case of failure, with an error code indicating the
     *         cause of the failure.
     */
@@ -1169,7 +1169,7 @@ interface INetd {
      * Add ingress interface filtering rules to a list of UIDs
      *
      * For a given uid, once a filtering rule is added, the kernel will only allow packets from the
-     * whitelisted interface and loopback to be sent to the list of UIDs.
+     * allowed interface and loopback to be sent to the list of UIDs.
      *
      * Calling this method on one or more UIDs with an existing filtering rule but a different
      * interface name will result in the filtering rule being updated to allow the new interface
