@@ -1123,7 +1123,7 @@ binder::Status NetdNativeService::networkClearPermissionForUser(const std::vecto
     return binder::Status::ok();
 }
 
-binder::Status NetdNativeService::NetdNativeService::networkSetProtectAllow(int32_t uid) {
+binder::Status NetdNativeService::networkSetProtectAllow(int32_t uid) {
     ENFORCE_NETWORK_STACK_PERMISSIONS();
     std::vector<uid_t> uids = {(uid_t) uid};
     gCtls->netCtrl.allowProtect(uids);
