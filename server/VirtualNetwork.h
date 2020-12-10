@@ -19,7 +19,6 @@
 #include <set>
 
 #include "Network.h"
-#include "UidRanges.h"
 
 namespace android::net {
 
@@ -36,7 +35,6 @@ public:
     virtual ~VirtualNetwork();
 
     bool isSecure() const;
-    bool appliesToUser(uid_t uid) const;
 
     [[nodiscard]] int addUsers(const UidRanges& uidRanges, const std::set<uid_t>& protectableUsers);
     [[nodiscard]] int removeUsers(const UidRanges& uidRanges,
@@ -50,7 +48,6 @@ public:
                           const std::set<uid_t>& protectableUsers);
 
     const bool mSecure;
-    UidRanges mUidRanges;
 };
 
 }  // namespace android::net

@@ -751,11 +751,10 @@ Network* NetworkController::getNetworkLocked(unsigned netId) const {
 }
 
 VirtualNetwork* NetworkController::getVirtualNetworkForUserLocked(uid_t uid) const {
-    for (const auto& entry : mNetworks) {
-        if (entry.second->getType() == Network::VIRTUAL) {
-            VirtualNetwork* virtualNetwork = static_cast<VirtualNetwork*>(entry.second);
-            if (virtualNetwork->appliesToUser(uid)) {
-                return virtualNetwork;
+    for (const auto& [_, network] : mNetworks) {
+        if (network->getType() == Network::VIRTUAL) {
+            if (network->appliesToUser(uid)) {
+                return static_cast<VirtualNetwork*>(network);
             }
         }
     }
@@ -788,7 +787,7 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
     }
     // If the UID wants to use a VPN, it can do so if and only if the VPN applies to the UID.
     if (network->getType() == Network::VIRTUAL) {
-        return static_cast<VirtualNetwork*>(network)->appliesToUser(uid) ? 0 : -EPERM;
+        return network->appliesToUser(uid) ? 0 : -EPERM;
     }
     // If a VPN applies to the UID, and the VPN is secure (i.e., not bypassable), then the UID can
     // only select a different network if it has the ability to protect its sockets.

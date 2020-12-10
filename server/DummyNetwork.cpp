@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "Netd"
+
 #include "DummyNetwork.h"
 
 #include "RouteController.h"
 
-#define LOG_TAG "Netd"
 #include "log/log.h"
 #include "errno.h"
 
