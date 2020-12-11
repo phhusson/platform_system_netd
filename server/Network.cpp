@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define LOG_TAG "Netd"
 
 #include "Network.h"
 
-#define LOG_TAG "Netd"
 #include "log/log.h"
 
 #include <android-base/strings.h>
@@ -86,6 +86,9 @@ std::string Network::toString() const {
     return repr.str();
 }
 
+bool Network::appliesToUser(uid_t uid) const {
+    return mUidRanges.hasUid(uid);
+}
 
 Network::Network(unsigned netId) : mNetId(netId) {
 }
