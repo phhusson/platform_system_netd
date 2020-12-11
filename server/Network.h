@@ -17,6 +17,7 @@
 #pragma once
 
 #include "NetdConstants.h"
+#include "UidRanges.h"
 
 #include <set>
 #include <string>
@@ -50,12 +51,14 @@ public:
     [[nodiscard]] int clearInterfaces();
 
     std::string toString() const;
+    bool appliesToUser(uid_t uid) const;
 
 protected:
     explicit Network(unsigned netId);
 
     const unsigned mNetId;
     std::set<std::string> mInterfaces;
+    UidRanges mUidRanges;
 };
 
 }  // namespace android::net

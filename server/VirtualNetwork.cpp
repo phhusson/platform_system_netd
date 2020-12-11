@@ -36,11 +36,6 @@ bool VirtualNetwork::isSecure() const {
     return mSecure;
 }
 
-bool VirtualNetwork::appliesToUser(uid_t uid) const {
-    return mUidRanges.hasUid(uid);
-}
-
-
 int VirtualNetwork::maybeCloseSockets(bool add, const UidRanges& uidRanges,
                                       const std::set<uid_t>& protectableUsers) {
     if (!mSecure) {
