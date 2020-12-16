@@ -43,6 +43,7 @@
 #include <openssl/base64.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 
 #include <android-base/file.h>
 #include <android-base/format.h>
@@ -1120,6 +1121,16 @@ void expectIdletimerInterfaceRuleNotExists(const std::string& ifname, int timeou
 }  // namespace
 
 TEST_F(NetdBinderTest, IdletimerAddRemoveInterface) {
+    // TODO(b/175745224): Temporarily disable idletimer test on >5.10 kernels
+    utsname u;
+    if (!uname(&u)) {
+        unsigned long major, minor;
+        char *p;
+        major = strtoul(u.release, &p, 10);
+        minor = strtoul(++p, NULL, 10);
+        if (major > 5 || (major == 5 && minor >= 10)) return;
+    }
+
     // TODO: We will get error in if expectIdletimerInterfaceRuleNotExists if there are the same
     // rule in the table. Because we only check the result after calling remove function. We might
     // check the actual rule which is removed by our function (maybe compare the results between
