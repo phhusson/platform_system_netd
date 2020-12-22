@@ -597,7 +597,7 @@ int NetworkController::addUsersToNetwork(unsigned netId, const UidRanges& uidRan
     if (int ret = isWrongNetworkForUidRanges(netId, network)) {
         return ret;
     }
-    return network->addUsers(uidRanges, mProtectableUsers);
+    return network->addUsers(uidRanges);
 }
 
 int NetworkController::removeUsersFromNetwork(unsigned netId, const UidRanges& uidRanges) {
@@ -606,7 +606,7 @@ int NetworkController::removeUsersFromNetwork(unsigned netId, const UidRanges& u
     if (int ret = isWrongNetworkForUidRanges(netId, network)) {
         return ret;
     }
-    return network->removeUsers(uidRanges, mProtectableUsers);
+    return network->removeUsers(uidRanges);
 }
 
 int NetworkController::addRoute(unsigned netId, const char* interface, const char* destination,
