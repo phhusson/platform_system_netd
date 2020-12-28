@@ -585,7 +585,7 @@ int NetworkController::addUsersToNetwork(unsigned netId, const UidRanges& uidRan
         ALOGE("cannot add users to non-virtual network with netId %u", netId);
         return -EINVAL;
     }
-    if (int ret = static_cast<VirtualNetwork*>(network)->addUsers(uidRanges, mProtectableUsers)) {
+    if (int ret = network->addUsers(uidRanges, mProtectableUsers)) {
         return ret;
     }
     return 0;
@@ -602,8 +602,7 @@ int NetworkController::removeUsersFromNetwork(unsigned netId, const UidRanges& u
         ALOGE("cannot remove users from non-virtual network with netId %u", netId);
         return -EINVAL;
     }
-    if (int ret = static_cast<VirtualNetwork*>(network)->removeUsers(uidRanges,
-                                                                     mProtectableUsers)) {
+    if (int ret = network->removeUsers(uidRanges, mProtectableUsers)) {
         return ret;
     }
     return 0;

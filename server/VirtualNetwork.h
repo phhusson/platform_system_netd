@@ -34,20 +34,10 @@ public:
     VirtualNetwork(unsigned netId, bool secure);
     virtual ~VirtualNetwork();
 
-    bool isSecure() const;
-
-    [[nodiscard]] int addUsers(const UidRanges& uidRanges, const std::set<uid_t>& protectableUsers);
-    [[nodiscard]] int removeUsers(const UidRanges& uidRanges,
-                                  const std::set<uid_t>& protectableUsers);
-
   private:
     Type getType() const override;
     [[nodiscard]] int addInterface(const std::string& interface) override;
     [[nodiscard]] int removeInterface(const std::string& interface) override;
-    int maybeCloseSockets(bool add, const UidRanges& uidRanges,
-                          const std::set<uid_t>& protectableUsers);
-
-    const bool mSecure;
 };
 
 }  // namespace android::net
