@@ -17,6 +17,8 @@
 
 #include "Network.h"
 
+#include "RouteController.h"
+#include "SockDiag.h"
 #include "log/log.h"
 
 #include <android-base/strings.h>
@@ -90,8 +92,59 @@ bool Network::appliesToUser(uid_t uid) const {
     return mUidRanges.hasUid(uid);
 }
 
-Network::Network(unsigned netId) : mNetId(netId) {
+int Network::maybeCloseSockets(Action action, const UidRanges& uidRanges,
+                               const std::set<uid_t>& protectableUsers) {
+    if (getType() == VIRTUAL && !mSecure) {
+        return 0;
+    }
+
+    SockDiag sd;
+    if (!sd.open()) {
+        return -EBADFD;
+    }
+
+    if (int ret = sd.destroySockets(uidRanges, protectableUsers, true /* excludeLoopback */)) {
+        ALOGE("Failed to close sockets while %s %s to network %d: %s",
+              action ? "adding" : "removing", uidRanges.toString().c_str(), mNetId, strerror(-ret));
+        return ret;
+    }
+
+    return 0;
 }
+
+int Network::addUsers(const UidRanges& uidRanges, const std::set<uid_t>& protectableUsers) {
+    maybeCloseSockets(Action::ADD, uidRanges, protectableUsers);
+
+    for (const std::string& interface : mInterfaces) {
+        if (int ret = RouteController::addUsersToVirtualNetwork(mNetId, interface.c_str(), mSecure,
+                                                                uidRanges)) {
+            ALOGE("failed to add users on interface %s of netId %u", interface.c_str(), mNetId);
+            return ret;
+        }
+    }
+    mUidRanges.add(uidRanges);
+    return 0;
+}
+
+int Network::removeUsers(const UidRanges& uidRanges, const std::set<uid_t>& protectableUsers) {
+    maybeCloseSockets(Action::REMOVE, uidRanges, protectableUsers);
+
+    for (const std::string& interface : mInterfaces) {
+        if (int ret = RouteController::removeUsersFromVirtualNetwork(mNetId, interface.c_str(),
+                                                                     mSecure, uidRanges)) {
+            ALOGE("failed to remove users on interface %s of netId %u", interface.c_str(), mNetId);
+            return ret;
+        }
+    }
+    mUidRanges.remove(uidRanges);
+    return 0;
+}
+
+bool Network::isSecure() const {
+    return mSecure;
+}
+
+Network::Network(unsigned netId, bool secure) : mNetId(netId), mSecure(secure) {}
 
 }  // namespace net
 }  // namespace android

@@ -574,39 +574,39 @@ int NetworkController::setPermissionForNetworks(Permission permission,
     return 0;
 }
 
-int NetworkController::addUsersToNetwork(unsigned netId, const UidRanges& uidRanges) {
-    ScopedWLock lock(mRWLock);
-    Network* network = getNetworkLocked(netId);
+namespace {
+
+int isWrongNetworkForUidRanges(unsigned netId, Network* network) {
     if (!network) {
         ALOGE("no such netId %u", netId);
         return -ENONET;
     }
-    if (network->getType() != Network::VIRTUAL) {
-        ALOGE("cannot add users to non-virtual network with netId %u", netId);
+    const Network::Type networkType = network->getType();
+    if (networkType != Network::VIRTUAL) {
+        ALOGE("cannot add/remove users to/from network type %d with netId %u", networkType, netId);
         return -EINVAL;
     }
-    if (int ret = static_cast<VirtualNetwork*>(network)->addUsers(uidRanges, mProtectableUsers)) {
+    return 0;
+}
+
+}  // namespace
+
+int NetworkController::addUsersToNetwork(unsigned netId, const UidRanges& uidRanges) {
+    ScopedWLock lock(mRWLock);
+    Network* network = getNetworkLocked(netId);
+    if (int ret = isWrongNetworkForUidRanges(netId, network)) {
         return ret;
     }
-    return 0;
+    return network->addUsers(uidRanges, mProtectableUsers);
 }
 
 int NetworkController::removeUsersFromNetwork(unsigned netId, const UidRanges& uidRanges) {
     ScopedWLock lock(mRWLock);
     Network* network = getNetworkLocked(netId);
-    if (!network) {
-        ALOGE("no such netId %u", netId);
-        return -ENONET;
-    }
-    if (network->getType() != Network::VIRTUAL) {
-        ALOGE("cannot remove users from non-virtual network with netId %u", netId);
-        return -EINVAL;
-    }
-    if (int ret = static_cast<VirtualNetwork*>(network)->removeUsers(uidRanges,
-                                                                     mProtectableUsers)) {
+    if (int ret = isWrongNetworkForUidRanges(netId, network)) {
         return ret;
     }
-    return 0;
+    return network->removeUsers(uidRanges, mProtectableUsers);
 }
 
 int NetworkController::addRoute(unsigned netId, const char* interface, const char* destination,
