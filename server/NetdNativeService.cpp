@@ -319,29 +319,29 @@ binder::Status NetdNativeService::bandwidthSetGlobalAlert(int64_t bytes) {
 
 binder::Status NetdNativeService::bandwidthAddNaughtyApp(int32_t uid) {
     NETD_LOCKING_RPC(gCtls->bandwidthCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-    std::vector<std::string> appStrUids = {std::to_string(abs(uid))};
-    int res = gCtls->bandwidthCtrl.addNaughtyApps(appStrUids);
+    std::vector<uint32_t> appUids = {static_cast<uint32_t>(abs(uid))};
+    int res = gCtls->bandwidthCtrl.addNaughtyApps(appUids);
     return statusFromErrcode(res);
 }
 
 binder::Status NetdNativeService::bandwidthRemoveNaughtyApp(int32_t uid) {
     NETD_LOCKING_RPC(gCtls->bandwidthCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-    std::vector<std::string> appStrUids = {std::to_string(abs(uid))};
-    int res = gCtls->bandwidthCtrl.removeNaughtyApps(appStrUids);
+    std::vector<uint32_t> appUids = {static_cast<uint32_t>(abs(uid))};
+    int res = gCtls->bandwidthCtrl.removeNaughtyApps(appUids);
     return statusFromErrcode(res);
 }
 
 binder::Status NetdNativeService::bandwidthAddNiceApp(int32_t uid) {
     NETD_LOCKING_RPC(gCtls->bandwidthCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-    std::vector<std::string> appStrUids = {std::to_string(abs(uid))};
-    int res = gCtls->bandwidthCtrl.addNiceApps(appStrUids);
+    std::vector<uint32_t> appUids = {static_cast<uint32_t>(abs(uid))};
+    int res = gCtls->bandwidthCtrl.addNiceApps(appUids);
     return statusFromErrcode(res);
 }
 
 binder::Status NetdNativeService::bandwidthRemoveNiceApp(int32_t uid) {
     NETD_LOCKING_RPC(gCtls->bandwidthCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-    std::vector<std::string> appStrUids = {std::to_string(abs(uid))};
-    int res = gCtls->bandwidthCtrl.removeNiceApps(appStrUids);
+    std::vector<uint32_t> appUids = {static_cast<uint32_t>(abs(uid))};
+    int res = gCtls->bandwidthCtrl.removeNiceApps(appUids);
     return statusFromErrcode(res);
 }
 
