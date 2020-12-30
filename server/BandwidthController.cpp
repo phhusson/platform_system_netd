@@ -810,8 +810,6 @@ inline const char *BandwidthController::jumpToString(IptJumpOp jumpHandling) {
      * For port-unreachable (default), TCP should consider as an abort (RFC1122).
      */
     switch (jumpHandling) {
-    case IptJumpNoAdd:
-        return "";
     case IptJumpReject:
         return " -j REJECT";
     case IptJumpReturn:
