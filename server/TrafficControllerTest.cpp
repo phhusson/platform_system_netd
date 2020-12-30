@@ -16,6 +16,7 @@
  * TrafficControllerTest.cpp - unit tests for TrafficController.cpp
  */
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -219,10 +220,10 @@ class TrafficControllerTest : public ::testing::Test {
         EXPECT_EQ(0, mTc.replaceUidOwnerMap(name, isAllowlist, uids));
         checkEachUidValue(uids, match);
     }
-    void expectUidOwnerMapValues(const std::vector<std::string>& appStrUids, uint8_t expectedRule,
+
+    void expectUidOwnerMapValues(const std::vector<uint32_t>& appUids, uint8_t expectedRule,
                                  uint32_t expectedIif) {
-        for (const std::string& strUid : appStrUids) {
-            uint32_t uid = stoi(strUid);
+        for (uint32_t uid : appUids) {
             Result<UidOwnerValue> value = mFakeUidOwnerMap.readValue(uid);
             EXPECT_RESULT_OK(value);
             EXPECT_EQ(expectedRule, value.value().rule)
@@ -662,11 +663,11 @@ TEST_F(TrafficControllerTest, TestReplaceSameChain) {
 TEST_F(TrafficControllerTest, TestDenylistUidMatch) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
-    std::vector<std::string> appStrUids = {"1000", "1001", "10012"};
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
+    std::vector<uint32_t> appUids = {1000, 1001, 10012};
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpInsert)));
-    expectUidOwnerMapValues(appStrUids, PENALTY_BOX_MATCH, 0);
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
+    expectUidOwnerMapValues(appUids, PENALTY_BOX_MATCH, 0);
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpDelete)));
     expectMapEmpty(mFakeUidOwnerMap);
 }
@@ -674,11 +675,11 @@ TEST_F(TrafficControllerTest, TestDenylistUidMatch) {
 TEST_F(TrafficControllerTest, TestAllowlistUidMatch) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
-    std::vector<std::string> appStrUids = {"1000", "1001", "10012"};
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
+    std::vector<uint32_t> appUids = {1000, 1001, 10012};
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpInsert)));
-    expectUidOwnerMapValues(appStrUids, HAPPY_BOX_MATCH, 0);
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
+    expectUidOwnerMapValues(appUids, HAPPY_BOX_MATCH, 0);
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpDelete)));
     expectMapEmpty(mFakeUidOwnerMap);
 }
@@ -686,25 +687,25 @@ TEST_F(TrafficControllerTest, TestAllowlistUidMatch) {
 TEST_F(TrafficControllerTest, TestReplaceMatchUid) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
-    std::vector<std::string> appStrUids = {"1000", "1001", "10012"};
-    // Add appStrUids to the denylist and expect that their values are all PENALTY_BOX_MATCH.
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
+    std::vector<uint32_t> appUids = {1000, 1001, 10012};
+    // Add appUids to the denylist and expect that their values are all PENALTY_BOX_MATCH.
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpInsert)));
-    expectUidOwnerMapValues(appStrUids, PENALTY_BOX_MATCH, 0);
+    expectUidOwnerMapValues(appUids, PENALTY_BOX_MATCH, 0);
 
     // Add the same UIDs to the allowlist and expect that we get PENALTY_BOX_MATCH |
     // HAPPY_BOX_MATCH.
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpInsert)));
-    expectUidOwnerMapValues(appStrUids, HAPPY_BOX_MATCH | PENALTY_BOX_MATCH, 0);
+    expectUidOwnerMapValues(appUids, HAPPY_BOX_MATCH | PENALTY_BOX_MATCH, 0);
 
     // Remove the same UIDs from the allowlist and check the PENALTY_BOX_MATCH is still there.
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpDelete)));
-    expectUidOwnerMapValues(appStrUids, PENALTY_BOX_MATCH, 0);
+    expectUidOwnerMapValues(appUids, PENALTY_BOX_MATCH, 0);
 
     // Remove the same UIDs from the denylist and check the map is empty.
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpDelete)));
     ASSERT_FALSE(mFakeUidOwnerMap.getFirstKey().ok());
 }
@@ -712,24 +713,24 @@ TEST_F(TrafficControllerTest, TestReplaceMatchUid) {
 TEST_F(TrafficControllerTest, TestDeleteWrongMatchSilentlyFails) {
     SKIP_IF_BPF_NOT_SUPPORTED;
 
-    std::vector<std::string> appStrUids = {"1000", "1001", "10012"};
+    std::vector<uint32_t> appUids = {1000, 1001, 10012};
     // If the uid does not exist in the map, trying to delete a rule about it will fail.
-    ASSERT_FALSE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
+    ASSERT_FALSE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReturn,
                                             BandwidthController::IptOpDelete)));
     expectMapEmpty(mFakeUidOwnerMap);
 
-    // Add denylist rules for appStrUids.
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReturn,
+    // Add denylist rules for appUids.
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReturn,
                                            BandwidthController::IptOpInsert)));
-    expectUidOwnerMapValues(appStrUids, HAPPY_BOX_MATCH, 0);
+    expectUidOwnerMapValues(appUids, HAPPY_BOX_MATCH, 0);
 
-    // Delete (non-existent) denylist rules for appStrUids, and check that this silently does
+    // Delete (non-existent) denylist rules for appUids, and check that this silently does
     // nothing if the uid is in the map but does not have denylist match. This is required because
     // NetworkManagementService will try to remove a uid from denylist after adding it to the
     // allowlist and if the remove fails it will not update the uid status.
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appStrUids, BandwidthController::IptJumpReject,
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap(appUids, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpDelete)));
-    expectUidOwnerMapValues(appStrUids, HAPPY_BOX_MATCH, 0);
+    expectUidOwnerMapValues(appUids, HAPPY_BOX_MATCH, 0);
 }
 
 TEST_F(TrafficControllerTest, TestAddUidInterfaceFilteringRules) {
@@ -737,20 +738,20 @@ TEST_F(TrafficControllerTest, TestAddUidInterfaceFilteringRules) {
 
     int iif0 = 15;
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif0, {1000, 1001})));
-    expectUidOwnerMapValues({"1000", "1001"}, IIF_MATCH, iif0);
+    expectUidOwnerMapValues({1000, 1001}, IIF_MATCH, iif0);
 
     // Add some non-overlapping new uids. They should coexist with existing rules
     int iif1 = 16;
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif1, {2000, 2001})));
-    expectUidOwnerMapValues({"1000", "1001"}, IIF_MATCH, iif0);
-    expectUidOwnerMapValues({"2000", "2001"}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({1000, 1001}, IIF_MATCH, iif0);
+    expectUidOwnerMapValues({2000, 2001}, IIF_MATCH, iif1);
 
     // Overwrite some existing uids
     int iif2 = 17;
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif2, {1000, 2000})));
-    expectUidOwnerMapValues({"1001"}, IIF_MATCH, iif0);
-    expectUidOwnerMapValues({"2001"}, IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"1000", "2000"}, IIF_MATCH, iif2);
+    expectUidOwnerMapValues({1001}, IIF_MATCH, iif0);
+    expectUidOwnerMapValues({2001}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({1000, 2000}, IIF_MATCH, iif2);
 }
 
 TEST_F(TrafficControllerTest, TestRemoveUidInterfaceFilteringRules) {
@@ -760,18 +761,18 @@ TEST_F(TrafficControllerTest, TestRemoveUidInterfaceFilteringRules) {
     int iif1 = 16;
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif0, {1000, 1001})));
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif1, {2000, 2001})));
-    expectUidOwnerMapValues({"1000", "1001"}, IIF_MATCH, iif0);
-    expectUidOwnerMapValues({"2000", "2001"}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({1000, 1001}, IIF_MATCH, iif0);
+    expectUidOwnerMapValues({2000, 2001}, IIF_MATCH, iif1);
 
     // Rmove some uids
     ASSERT_TRUE(isOk(mTc.removeUidInterfaceRules({1001, 2001})));
-    expectUidOwnerMapValues({"1000"}, IIF_MATCH, iif0);
-    expectUidOwnerMapValues({"2000"}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({1000}, IIF_MATCH, iif0);
+    expectUidOwnerMapValues({2000}, IIF_MATCH, iif1);
     checkEachUidValue({1000, 2000}, IIF_MATCH);  // Make sure there are only two uids remaining
 
     // Remove non-existent uids shouldn't fail
     ASSERT_TRUE(isOk(mTc.removeUidInterfaceRules({2000, 3000})));
-    expectUidOwnerMapValues({"1000"}, IIF_MATCH, iif0);
+    expectUidOwnerMapValues({1000}, IIF_MATCH, iif0);
     checkEachUidValue({1000}, IIF_MATCH);  // Make sure there are only one uid remaining
 
     // Remove everything
@@ -783,27 +784,26 @@ TEST_F(TrafficControllerTest, TestUidInterfaceFilteringRulesCoexistWithExistingM
     SKIP_IF_BPF_NOT_SUPPORTED;
 
     // Set up existing PENALTY_BOX_MATCH rules
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap({"1000", "1001", "10012"},
-                                           BandwidthController::IptJumpReject,
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap({1000, 1001, 10012}, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpInsert)));
-    expectUidOwnerMapValues({"1000", "1001", "10012"}, PENALTY_BOX_MATCH, 0);
+    expectUidOwnerMapValues({1000, 1001, 10012}, PENALTY_BOX_MATCH, 0);
 
     // Add some partially-overlapping uid owner rules and check result
     int iif1 = 32;
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif1, {10012, 10013, 10014})));
-    expectUidOwnerMapValues({"1000", "1001"}, PENALTY_BOX_MATCH, 0);
-    expectUidOwnerMapValues({"10012"}, PENALTY_BOX_MATCH | IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"10013", "10014"}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({1000, 1001}, PENALTY_BOX_MATCH, 0);
+    expectUidOwnerMapValues({10012}, PENALTY_BOX_MATCH | IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10013, 10014}, IIF_MATCH, iif1);
 
     // Removing some PENALTY_BOX_MATCH rules should not change uid interface rule
-    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap({"1001", "10012"}, BandwidthController::IptJumpReject,
+    ASSERT_TRUE(isOk(mTc.updateUidOwnerMap({1001, 10012}, BandwidthController::IptJumpReject,
                                            BandwidthController::IptOpDelete)));
-    expectUidOwnerMapValues({"1000"}, PENALTY_BOX_MATCH, 0);
-    expectUidOwnerMapValues({"10012", "10013", "10014"}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({1000}, PENALTY_BOX_MATCH, 0);
+    expectUidOwnerMapValues({10012, 10013, 10014}, IIF_MATCH, iif1);
 
     // Remove all uid interface rules
     ASSERT_TRUE(isOk(mTc.removeUidInterfaceRules({10012, 10013, 10014})));
-    expectUidOwnerMapValues({"1000"}, PENALTY_BOX_MATCH, 0);
+    expectUidOwnerMapValues({1000}, PENALTY_BOX_MATCH, 0);
     // Make sure these are the only uids left
     checkEachUidValue({1000}, PENALTY_BOX_MATCH);
 }
@@ -814,31 +814,31 @@ TEST_F(TrafficControllerTest, TestUidInterfaceFilteringRulesCoexistWithNewMatche
     int iif1 = 56;
     // Set up existing uid interface rules
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif1, {10001, 10002})));
-    expectUidOwnerMapValues({"10001", "10002"}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10001, 10002}, IIF_MATCH, iif1);
 
     // Add some partially-overlapping doze rules
     EXPECT_EQ(0, mTc.replaceUidOwnerMap("fw_dozable", true, {10002, 10003}));
-    expectUidOwnerMapValues({"10001"}, IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"10002"}, DOZABLE_MATCH | IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"10003"}, DOZABLE_MATCH, 0);
+    expectUidOwnerMapValues({10001}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10002}, DOZABLE_MATCH | IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10003}, DOZABLE_MATCH, 0);
 
     // Introduce a third rule type (powersave) on various existing UIDs
     EXPECT_EQ(0, mTc.replaceUidOwnerMap("fw_powersave", true, {10000, 10001, 10002, 10003}));
-    expectUidOwnerMapValues({"10000"}, POWERSAVE_MATCH, 0);
-    expectUidOwnerMapValues({"10001"}, POWERSAVE_MATCH | IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"10002"}, POWERSAVE_MATCH | DOZABLE_MATCH | IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"10003"}, POWERSAVE_MATCH | DOZABLE_MATCH, 0);
+    expectUidOwnerMapValues({10000}, POWERSAVE_MATCH, 0);
+    expectUidOwnerMapValues({10001}, POWERSAVE_MATCH | IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10002}, POWERSAVE_MATCH | DOZABLE_MATCH | IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10003}, POWERSAVE_MATCH | DOZABLE_MATCH, 0);
 
     // Remove all doze rules
     EXPECT_EQ(0, mTc.replaceUidOwnerMap("fw_dozable", true, {}));
-    expectUidOwnerMapValues({"10000"}, POWERSAVE_MATCH, 0);
-    expectUidOwnerMapValues({"10001"}, POWERSAVE_MATCH | IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"10002"}, POWERSAVE_MATCH | IIF_MATCH, iif1);
-    expectUidOwnerMapValues({"10003"}, POWERSAVE_MATCH, 0);
+    expectUidOwnerMapValues({10000}, POWERSAVE_MATCH, 0);
+    expectUidOwnerMapValues({10001}, POWERSAVE_MATCH | IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10002}, POWERSAVE_MATCH | IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10003}, POWERSAVE_MATCH, 0);
 
     // Remove all powersave rules, expect ownerMap to only have uid interface rules left
     EXPECT_EQ(0, mTc.replaceUidOwnerMap("fw_powersave", true, {}));
-    expectUidOwnerMapValues({"10001", "10002"}, IIF_MATCH, iif1);
+    expectUidOwnerMapValues({10001, 10002}, IIF_MATCH, iif1);
     // Make sure these are the only uids left
     checkEachUidValue({10001, 10002}, IIF_MATCH);
 }
