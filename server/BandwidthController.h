@@ -32,7 +32,6 @@ public:
     BandwidthController();
 
     int setupIptablesHooks();
-    void setBpfEnabled(bool isEnabled);
 
     int enableBandwidthControl();
     int disableBandwidthControl();
@@ -96,8 +95,8 @@ public:
 
     std::string makeDataSaverCommand(IptablesTarget target, bool enable);
 
-    int manipulateSpecialApps(const std::vector<std::string>& appStrUids, const std::string& chain,
-                              IptJumpOp jumpHandling, IptOp appOp);
+    int manipulateSpecialApps(const std::vector<std::string>& appStrUids, IptJumpOp jumpHandling,
+                              IptOp appOp);
 
     int runIptablesAlertCmd(IptOp op, const std::string& alertName, int64_t bytes);
     int runIptablesAlertFwdCmd(IptOp op, const std::string& alertName, int64_t bytes);
@@ -131,8 +130,6 @@ public:
 
     static const char *opToString(IptOp op);
     static const char *jumpToString(IptJumpOp jumpHandling);
-
-    bool mBpfSupported = false;
 
     int64_t mSharedQuotaBytes = 0;
     int64_t mSharedAlertBytes = 0;
