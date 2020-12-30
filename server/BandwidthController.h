@@ -45,10 +45,10 @@ public:
     int getInterfaceQuota(const std::string& iface, int64_t* bytes);
     int removeInterfaceQuota(const std::string& iface);
 
-    int addNaughtyApps(const std::vector<std::string>& appStrUid);
-    int removeNaughtyApps(const std::vector<std::string>& appStrUid);
-    int addNiceApps(const std::vector<std::string>& appStrUid);
-    int removeNiceApps(const std::vector<std::string>& appStrUid);
+    int addNaughtyApps(const std::vector<uint32_t>& appUids);
+    int removeNaughtyApps(const std::vector<uint32_t>& appUids);
+    int addNiceApps(const std::vector<uint32_t>& appUids);
+    int removeNiceApps(const std::vector<uint32_t>& appUids);
 
     int setGlobalAlert(int64_t bytes);
     int removeGlobalAlert();
@@ -89,7 +89,7 @@ public:
 
     std::string makeDataSaverCommand(IptablesTarget target, bool enable);
 
-    int manipulateSpecialApps(const std::vector<std::string>& appStrUids, IptJumpOp jumpHandling,
+    int manipulateSpecialApps(const std::vector<uint32_t>& appStrUids, IptJumpOp jumpHandling,
                               IptOp appOp);
 
     int runIptablesAlertCmd(IptOp op, const std::string& alertName, int64_t bytes);
