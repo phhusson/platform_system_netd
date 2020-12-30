@@ -263,10 +263,6 @@ std::vector<std::string> getBasicAccountingCommands() {
     return ipt_basic_accounting_commands;
 }
 
-std::vector<std::string> toStrVec(int num, const char* const strs[]) {
-    return std::vector<std::string>(strs, strs + num);
-}
-
 }  // namespace
 
 BandwidthController::BandwidthController() {
@@ -324,26 +320,6 @@ int BandwidthController::enableDataSaver(bool enable) {
     int ret = iptablesRestoreFunction(V4, makeDataSaverCommand(V4, enable), nullptr);
     ret |= iptablesRestoreFunction(V6, makeDataSaverCommand(V6, enable), nullptr);
     return ret;
-}
-
-// TODO: Remove after removing these commands in CommandListener
-int BandwidthController::addNaughtyApps(int numUids, const char* const appUids[]) {
-    return manipulateSpecialApps(toStrVec(numUids, appUids), IptJumpReject, IptOpInsert);
-}
-
-// TODO: Remove after removing these commands in CommandListener
-int BandwidthController::removeNaughtyApps(int numUids, const char* const appUids[]) {
-    return manipulateSpecialApps(toStrVec(numUids, appUids), IptJumpReject, IptOpDelete);
-}
-
-// TODO: Remove after removing these commands in CommandListener
-int BandwidthController::addNiceApps(int numUids, const char* const appUids[]) {
-    return manipulateSpecialApps(toStrVec(numUids, appUids), IptJumpReturn, IptOpInsert);
-}
-
-// TODO: Remove after removing these commands in CommandListener
-int BandwidthController::removeNiceApps(int numUids, const char* const appUids[]) {
-    return manipulateSpecialApps(toStrVec(numUids, appUids), IptJumpReturn, IptOpDelete);
 }
 
 int BandwidthController::addNaughtyApps(const std::vector<std::string>& appStrUid) {
