@@ -322,25 +322,25 @@ int BandwidthController::enableDataSaver(bool enable) {
     return ret;
 }
 
-int BandwidthController::addNaughtyApps(const std::vector<std::string>& appStrUid) {
-    return manipulateSpecialApps(appStrUid, IptJumpReject, IptOpInsert);
+int BandwidthController::addNaughtyApps(const std::vector<uint32_t>& appUids) {
+    return manipulateSpecialApps(appUids, IptJumpReject, IptOpInsert);
 }
 
-int BandwidthController::removeNaughtyApps(const std::vector<std::string>& appStrUid) {
-    return manipulateSpecialApps(appStrUid, IptJumpReject, IptOpDelete);
+int BandwidthController::removeNaughtyApps(const std::vector<uint32_t>& appUids) {
+    return manipulateSpecialApps(appUids, IptJumpReject, IptOpDelete);
 }
 
-int BandwidthController::addNiceApps(const std::vector<std::string>& appStrUid) {
-    return manipulateSpecialApps(appStrUid, IptJumpReturn, IptOpInsert);
+int BandwidthController::addNiceApps(const std::vector<uint32_t>& appUids) {
+    return manipulateSpecialApps(appUids, IptJumpReturn, IptOpInsert);
 }
 
-int BandwidthController::removeNiceApps(const std::vector<std::string>& appStrUid) {
-    return manipulateSpecialApps(appStrUid, IptJumpReturn, IptOpDelete);
+int BandwidthController::removeNiceApps(const std::vector<uint32_t>& appUids) {
+    return manipulateSpecialApps(appUids, IptJumpReturn, IptOpDelete);
 }
 
-int BandwidthController::manipulateSpecialApps(const std::vector<std::string>& appStrUids,
+int BandwidthController::manipulateSpecialApps(const std::vector<uint32_t>& appUids,
                                                IptJumpOp jumpHandling, IptOp op) {
-    Status status = gCtls->trafficCtrl.updateUidOwnerMap(appStrUids, jumpHandling, op);
+    Status status = gCtls->trafficCtrl.updateUidOwnerMap(appUids, jumpHandling, op);
     if (!isOk(status)) {
         ALOGE("unable to update the Bandwidth Uid Map: %s", toString(status).c_str());
     }
