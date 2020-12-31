@@ -24,6 +24,7 @@
 #include <mutex>
 
 #include "NetdConstants.h"
+#include "netdbpf/bpf_shared.h"
 
 class BandwidthController {
 public:
@@ -68,7 +69,7 @@ public:
     static const char LOCAL_MANGLE_POSTROUTING[];
     static const char LOCAL_GLOBAL_ALERT[];
 
-    enum IptJumpOp { IptJumpReject, IptJumpReturn, IptJumpNoAdd };
+    enum IptJumpOp { IptJumpReject, IptJumpReturn };
     enum IptOp { IptOpInsert, IptOpDelete };
 
   private:
@@ -89,7 +90,7 @@ public:
 
     std::string makeDataSaverCommand(IptablesTarget target, bool enable);
 
-    int manipulateSpecialApps(const std::vector<uint32_t>& appStrUids, IptJumpOp jumpHandling,
+    int manipulateSpecialApps(const std::vector<uint32_t>& appStrUids, UidOwnerMatchType matchType,
                               IptOp appOp);
 
     int runIptablesAlertCmd(IptOp op, const std::string& alertName, int64_t bytes);
