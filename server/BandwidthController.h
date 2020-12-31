@@ -32,7 +32,6 @@ public:
     BandwidthController();
 
     int setupIptablesHooks();
-    void setBpfEnabled(bool isEnabled);
 
     int enableBandwidthControl();
     int disableBandwidthControl();
@@ -46,16 +45,10 @@ public:
     int getInterfaceQuota(const std::string& iface, int64_t* bytes);
     int removeInterfaceQuota(const std::string& iface);
 
-    // TODO: Remove after removing these commands in CommandListener
-    int addNaughtyApps(int numUids, const char* const appUids[]);
-    int removeNaughtyApps(int numUids, const char* const appUids[]);
-    int addNiceApps(int numUids, const char* const appUids[]);
-    int removeNiceApps(int numUids, const char* const appUids[]);
-
-    int addNaughtyApps(const std::vector<std::string>& appStrUid);
-    int removeNaughtyApps(const std::vector<std::string>& appStrUid);
-    int addNiceApps(const std::vector<std::string>& appStrUid);
-    int removeNiceApps(const std::vector<std::string>& appStrUid);
+    int addNaughtyApps(const std::vector<uint32_t>& appUids);
+    int removeNaughtyApps(const std::vector<uint32_t>& appUids);
+    int addNiceApps(const std::vector<uint32_t>& appUids);
+    int removeNiceApps(const std::vector<uint32_t>& appUids);
 
     int setGlobalAlert(int64_t bytes);
     int removeGlobalAlert();
@@ -96,8 +89,8 @@ public:
 
     std::string makeDataSaverCommand(IptablesTarget target, bool enable);
 
-    int manipulateSpecialApps(const std::vector<std::string>& appStrUids, const std::string& chain,
-                              IptJumpOp jumpHandling, IptOp appOp);
+    int manipulateSpecialApps(const std::vector<uint32_t>& appStrUids, IptJumpOp jumpHandling,
+                              IptOp appOp);
 
     int runIptablesAlertCmd(IptOp op, const std::string& alertName, int64_t bytes);
     int runIptablesAlertFwdCmd(IptOp op, const std::string& alertName, int64_t bytes);
@@ -131,8 +124,6 @@ public:
 
     static const char *opToString(IptOp op);
     static const char *jumpToString(IptJumpOp jumpHandling);
-
-    bool mBpfSupported = false;
 
     int64_t mSharedQuotaBytes = 0;
     int64_t mSharedAlertBytes = 0;
