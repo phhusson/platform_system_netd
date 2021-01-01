@@ -113,8 +113,8 @@ class TrafficController {
     netdutils::Status removeUidInterfaceRules(const std::vector<int32_t>& uids) EXCLUDES(mMutex);
 
     netdutils::Status updateUidOwnerMap(const std::vector<uint32_t>& appStrUids,
-                                        BandwidthController::IptJumpOp jumpHandling,
-                                        BandwidthController::IptOp op) EXCLUDES(mMutex);
+                                        UidOwnerMatchType matchType, BandwidthController::IptOp op)
+            EXCLUDES(mMutex);
     static const String16 DUMP_KEYWORD;
 
     int toggleUidOwnerMap(ChildChain chain, bool enable) EXCLUDES(mMutex);
