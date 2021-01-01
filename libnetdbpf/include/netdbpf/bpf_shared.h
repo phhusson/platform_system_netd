@@ -17,6 +17,7 @@
 #ifndef NETDBPF_BPF_SHARED_H
 #define NETDBPF_BPF_SHARED_H
 
+#include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/in.h>
 #include <linux/in6.h>
