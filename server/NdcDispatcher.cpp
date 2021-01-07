@@ -748,12 +748,12 @@ int NdcDispatcher::FirewallCmd::parseRule(const char* arg) {
 
 int NdcDispatcher::FirewallCmd::parseFirewallType(const char* arg) {
     if (!strcmp(arg, "allowlist")) {
-        return INetd::FIREWALL_WHITELIST;
+        return INetd::FIREWALL_ALLOWLIST;
     } else if (!strcmp(arg, "denylist")) {
-        return INetd::FIREWALL_BLACKLIST;
+        return INetd::FIREWALL_DENYLIST;
     } else {
         LOG(LOGLEVEL) << "failed to parse firewall type " << arg;
-        return INetd::FIREWALL_BLACKLIST;
+        return INetd::FIREWALL_DENYLIST;
     }
 }
 
