@@ -3683,6 +3683,25 @@ static bool expectPacket(int fd, uint8_t* ipPacket, ssize_t ipLen) {
     return false;
 }
 
+static bool tcQdiscExists(const std::string& interface) {
+    std::string command = StringPrintf("tc qdisc show dev %s", interface.c_str());
+    std::vector<std::string> lines = runCommand(command);
+    for (const auto& line : lines) {
+        if (StartsWith(line, "qdisc clsact ffff:")) return true;
+    }
+    return false;
+}
+
+static bool tcFilterExists(const std::string& interface) {
+    std::string command = StringPrintf("tc filter show dev %s ingress", interface.c_str());
+    std::vector<std::string> lines = runCommand(command);
+    const std::basic_regex regex("^filter .* bpf .* prog_offload_schedcls_[0-9a-z_]+_tether_.*$");
+    for (const auto& line : lines) {
+        if (std::regex_match(Trim(line), regex)) return true;
+    }
+    return false;
+}
+
 TEST_F(NetdBinderTest, TetherOffloadForwarding) {
     SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
 
@@ -3713,6 +3732,7 @@ TEST_F(NetdBinderTest, TetherOffloadForwarding) {
     EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
     int fd1 = sTun.getFdForTesting();
+    EXPECT_TRUE(tcQdiscExists(sTun.name()));
 
     // Create our own tap as a downstream.
     TunInterface tap;
@@ -3730,6 +3750,7 @@ TEST_F(NetdBinderTest, TetherOffloadForwarding) {
     status = mNetd->tetherInterfaceAdd(tap.name());
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectTetherInterfaceConfigureForIPv6Router(tap.name());
+    EXPECT_TRUE(tcQdiscExists(tap.name()));
 
     // Can't easily use INetd::NEXTHOP_NONE because it is a String16 constant. Use "" instead.
     status = mNetd->networkAddRoute(INetd::LOCAL_NET_ID, tap.name(), kDownstreamPrefix, "");
@@ -3740,6 +3761,7 @@ TEST_F(NetdBinderTest, TetherOffloadForwarding) {
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     status = mNetd->ipfwdAddInterfaceForward(tap.name(), sTun.name());
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
+    EXPECT_TRUE(tcFilterExists(sTun.name()));
 
     std::vector<uint8_t> kDummyMac = {02, 00, 00, 00, 00, 00};
     uint8_t* daddr = reinterpret_cast<uint8_t*>(&pkt.hdr.daddr);

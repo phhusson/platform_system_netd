@@ -146,6 +146,8 @@ static const char* familyName(uint8_t family) {
     }
 }
 
+static void maybeModifyQdiscClsact(const char* interface, bool add);
+
 // Caller must hold sInterfaceToTableLock.
 uint32_t RouteController::getRouteTableForInterfaceLocked(const char* interface) {
     // If we already know the routing table for this interface name, use it.
@@ -745,6 +747,7 @@ int RouteController::configureDummyNetwork() {
     if (int ret = modifyIncomingPacketMark(netId, interface, PERMISSION_NONE, add)) {
         return ret;
     }
+    maybeModifyQdiscClsact(interface, add);
     return modifyOutputInterfaceRules(interface, ROUTE_TABLE_LOCAL_NETWORK, PERMISSION_NONE,
                                       INVALID_UID, INVALID_UID, add);
 }
@@ -918,7 +921,7 @@ int RouteController::modifyRoute(uint16_t action, uint16_t flags, const char* in
     return 0;
 }
 
-void maybeModifyQdiscClsact(const char* interface, bool add) {
+static void maybeModifyQdiscClsact(const char* interface, bool add) {
     if (!bpf::isBpfSupported()) return;
 
     // The clsact attaching of v4- tun interface is triggered by ClatdController::maybeStartBpf
