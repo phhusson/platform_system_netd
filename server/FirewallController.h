@@ -36,7 +36,7 @@ enum FirewallRule { ALLOW = INetd::FIREWALL_RULE_ALLOW, DENY = INetd::FIREWALL_R
 // ALLOWLIST means the firewall denies all by default, uids must be explicitly ALLOWed
 // DENYLIST means the firewall allows all by default, uids must be explicitly DENYed
 
-enum FirewallType { ALLOWLIST = INetd::FIREWALL_WHITELIST, DENYLIST = INetd::FIREWALL_BLACKLIST };
+enum FirewallType { ALLOWLIST = INetd::FIREWALL_ALLOWLIST, DENYLIST = INetd::FIREWALL_DENYLIST };
 
 enum ChildChain {
     NONE = INetd::FIREWALL_CHAIN_NONE,
