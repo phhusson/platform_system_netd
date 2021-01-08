@@ -2459,42 +2459,42 @@ void expectFirewallChildChainsLastRuleDoesNotExist(const char* chainRule) {
 }  // namespace
 
 TEST_F(NetdBinderTest, FirewallSetFirewallType) {
-    binder::Status status = mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
+    binder::Status status = mNetd->firewallSetFirewallType(INetd::FIREWALL_ALLOWLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallAllowlistMode();
 
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallDenylistMode();
 
     // set firewall type blacklist twice
-    mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
+    mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallDenylistMode();
 
     // set firewall type whitelist twice
-    mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
+    mNetd->firewallSetFirewallType(INetd::FIREWALL_ALLOWLIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_ALLOWLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallAllowlistMode();
 
     // reset firewall type to default
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallDenylistMode();
 }
 
 TEST_F(NetdBinderTest, FirewallSetInterfaceRule) {
     // setinterfaceRule is not supported in BLACKLIST MODE
-    binder::Status status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
+    binder::Status status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
 
     status = mNetd->firewallSetInterfaceRule(sTun.name(), INetd::FIREWALL_RULE_ALLOW);
     EXPECT_FALSE(status.isOk()) << status.exceptionMessage();
 
     // set WHITELIST mode first
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_ALLOWLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
 
     status = mNetd->firewallSetInterfaceRule(sTun.name(), INetd::FIREWALL_RULE_ALLOW);
@@ -2506,7 +2506,7 @@ TEST_F(NetdBinderTest, FirewallSetInterfaceRule) {
     expectFireWallInterfaceRuleAllowDoesNotExist(sTun.name());
 
     // reset firewall mode to default
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallDenylistMode();
 }
@@ -2577,7 +2577,7 @@ TEST_F(NetdBinderTest, FirewallSetUidRule) {
     expectFirewallUidLastRuleDoesNotExist(FIREWALL_OUTPUT, uid);
 
     // set firewall type whitelist twice
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_WHITELIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_ALLOWLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallAllowlistMode();
 
@@ -2594,7 +2594,7 @@ TEST_F(NetdBinderTest, FirewallSetUidRule) {
     expectFirewallUidFirstRuleDoesNotExist(FIREWALL_OUTPUT, uid);
 
     // reset firewall mode to default
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_BLACKLIST);
+    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallDenylistMode();
 }
