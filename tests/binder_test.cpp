@@ -3097,8 +3097,6 @@ void checkUidsInPermissionMap(std::vector<int32_t>& uids, bool exist) {
 }  // namespace
 
 TEST_F(NetdBinderTest, TestInternetPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<int32_t> appUids = {TEST_UID1, TEST_UID2};
 
     mNetd->trafficSetNetPermForUids(INetd::PERMISSION_INTERNET, appUids);
@@ -3568,8 +3566,6 @@ TetherOffloadRuleParcel makeTetherOffloadRule(int inputInterfaceIndex, int outpu
 }  // namespace
 
 TEST_F(NetdBinderTest, TetherOffloadRule) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     // TODO: Perhaps verify invalid interface index once the netd handle the error in methods.
     constexpr uint32_t kIfaceInt = 101;
     constexpr uint32_t kIfaceExt = 102;
