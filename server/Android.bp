@@ -59,7 +59,9 @@ aidl_interface {
                 "//apex_available:platform",
                 "com.android.bluetooth.updatable",
                 "com.android.wifi",
+                "com.android.tethering",
             ],
+            min_sdk_version: "29",
         },
     },
 }
@@ -76,27 +78,6 @@ aidl_interface {
         "binder/com/android/internal/net/IOemNetd.aidl",
         "binder/com/android/internal/net/IOemNetdUnsolicitedEventListener.aidl",
     ],
-}
-
-// Convenience build target for the version of the netd stable AIDL interface used by the platform.
-// This exists to ensure that all non-updatable code in the system server uses the same version.
-// Mixing different versions of generated classes results in code non-deterministically(?) using one
-// of the compiled-in versions, and potentially crashing when code compiled against a newer version
-// ends up using a generated class from an older version and calls methods that don't exist.
-// This must be a frozen version on REL builds and can be -unstable on development builds.
-// See http://b/143560726 for an example.
-java_library {
-    name: "netd_aidl_interfaces-platform-java",
-    static_libs: [
-        "netd_aidl_interface-unstable-java",
-        "netd_event_listener_interface-java",
-    ],
-    // TODO: remove bluetooth, which doesn't actually use netd at all.
-    apex_available: [
-        "//apex_available:platform", // due to the dependency from services.net
-        "com.android.bluetooth.updatable",
-    ],
-    sdk_version: "system_current",
 }
 
 // These are used in netd_integration_test
