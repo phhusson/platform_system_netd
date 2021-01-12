@@ -92,29 +92,7 @@ bool Network::appliesToUser(uid_t uid) const {
     return mUidRanges.hasUid(uid);
 }
 
-int Network::maybeCloseSockets(Action action, const UidRanges& uidRanges,
-                               const std::set<uid_t>& protectableUsers) {
-    if (getType() == VIRTUAL && !mSecure) {
-        return 0;
-    }
-
-    SockDiag sd;
-    if (!sd.open()) {
-        return -EBADFD;
-    }
-
-    if (int ret = sd.destroySockets(uidRanges, protectableUsers, true /* excludeLoopback */)) {
-        ALOGE("Failed to close sockets while %s %s to network %d: %s",
-              action ? "adding" : "removing", uidRanges.toString().c_str(), mNetId, strerror(-ret));
-        return ret;
-    }
-
-    return 0;
-}
-
-int Network::addUsers(const UidRanges& uidRanges, const std::set<uid_t>& protectableUsers) {
-    maybeCloseSockets(Action::ADD, uidRanges, protectableUsers);
-
+int Network::addUsers(const UidRanges& uidRanges) {
     for (const std::string& interface : mInterfaces) {
         if (int ret = RouteController::addUsersToVirtualNetwork(mNetId, interface.c_str(), mSecure,
                                                                 uidRanges)) {
@@ -126,9 +104,7 @@ int Network::addUsers(const UidRanges& uidRanges, const std::set<uid_t>& protect
     return 0;
 }
 
-int Network::removeUsers(const UidRanges& uidRanges, const std::set<uid_t>& protectableUsers) {
-    maybeCloseSockets(Action::REMOVE, uidRanges, protectableUsers);
-
+int Network::removeUsers(const UidRanges& uidRanges) {
     for (const std::string& interface : mInterfaces) {
         if (int ret = RouteController::removeUsersFromVirtualNetwork(mNetId, interface.c_str(),
                                                                      mSecure, uidRanges)) {
