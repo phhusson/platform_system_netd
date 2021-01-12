@@ -56,6 +56,8 @@ public:
     [[nodiscard]] int removeUsers(const UidRanges& uidRanges,
                                   const std::set<uid_t>& protectableUsers);
     bool isSecure() const;
+    bool isPhysical() { return getType() == PHYSICAL; }
+    bool isVirtual() { return getType() == VIRTUAL; }
 
 protected:
     explicit Network(unsigned netId, bool mSecure = false);
