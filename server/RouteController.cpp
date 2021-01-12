@@ -54,23 +54,6 @@ auto RouteController::iptablesRestoreCommandFunction = execIptablesRestoreComman
 
 // BEGIN CONSTANTS --------------------------------------------------------------------------------
 
-const uint32_t RULE_PRIORITY_VPN_OVERRIDE_SYSTEM = 10000;
-const uint32_t RULE_PRIORITY_VPN_OVERRIDE_OIF    = 10500;
-const uint32_t RULE_PRIORITY_VPN_OUTPUT_TO_LOCAL = 11000;
-const uint32_t RULE_PRIORITY_SECURE_VPN          = 12000;
-const uint32_t RULE_PRIORITY_PROHIBIT_NON_VPN    = 12500;
-const uint32_t RULE_PRIORITY_EXPLICIT_NETWORK    = 13000;
-const uint32_t RULE_PRIORITY_OUTPUT_INTERFACE    = 14000;
-const uint32_t RULE_PRIORITY_LEGACY_SYSTEM       = 15000;
-const uint32_t RULE_PRIORITY_LEGACY_NETWORK      = 16000;
-const uint32_t RULE_PRIORITY_LOCAL_NETWORK       = 17000;
-const uint32_t RULE_PRIORITY_TETHERING           = 18000;
-const uint32_t RULE_PRIORITY_IMPLICIT_NETWORK    = 19000;
-const uint32_t RULE_PRIORITY_BYPASSABLE_VPN      = 20000;
-const uint32_t RULE_PRIORITY_VPN_FALLTHROUGH     = 21000;
-const uint32_t RULE_PRIORITY_DEFAULT_NETWORK     = 22000;
-const uint32_t RULE_PRIORITY_UNREACHABLE         = 32000;
-
 const uint32_t ROUTE_TABLE_LOCAL_NETWORK  = 97;
 const uint32_t ROUTE_TABLE_LEGACY_NETWORK = 98;
 const uint32_t ROUTE_TABLE_LEGACY_SYSTEM  = 99;
