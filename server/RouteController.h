@@ -28,6 +28,25 @@
 
 namespace android::net {
 
+// clang-format off
+const uint32_t RULE_PRIORITY_VPN_OVERRIDE_SYSTEM = 10000;
+const uint32_t RULE_PRIORITY_VPN_OVERRIDE_OIF    = 10500;
+const uint32_t RULE_PRIORITY_VPN_OUTPUT_TO_LOCAL = 11000;
+const uint32_t RULE_PRIORITY_SECURE_VPN          = 12000;
+const uint32_t RULE_PRIORITY_PROHIBIT_NON_VPN    = 12500;
+const uint32_t RULE_PRIORITY_EXPLICIT_NETWORK    = 13000;
+const uint32_t RULE_PRIORITY_OUTPUT_INTERFACE    = 14000;
+const uint32_t RULE_PRIORITY_LEGACY_SYSTEM       = 15000;
+const uint32_t RULE_PRIORITY_LEGACY_NETWORK      = 16000;
+const uint32_t RULE_PRIORITY_LOCAL_NETWORK       = 17000;
+const uint32_t RULE_PRIORITY_TETHERING           = 18000;
+const uint32_t RULE_PRIORITY_IMPLICIT_NETWORK    = 19000;
+const uint32_t RULE_PRIORITY_BYPASSABLE_VPN      = 20000;
+const uint32_t RULE_PRIORITY_VPN_FALLTHROUGH     = 21000;
+const uint32_t RULE_PRIORITY_DEFAULT_NETWORK     = 22000;
+const uint32_t RULE_PRIORITY_UNREACHABLE         = 32000;
+// clang-format on
+
 class UidRanges;
 
 class RouteController {
