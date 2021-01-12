@@ -99,8 +99,6 @@ TEST_F(OffloadUtilsTest, IsEthernetOfCellular) {
 }
 
 TEST_F(OffloadUtilsTest, GetClatEgressMapFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getClatEgressMapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -108,8 +106,6 @@ TEST_F(OffloadUtilsTest, GetClatEgressMapFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetClatEgressRawIpProgFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getClatEgressProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -117,8 +113,6 @@ TEST_F(OffloadUtilsTest, GetClatEgressRawIpProgFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetClatEgressEtherProgFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getClatEgressProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -126,8 +120,6 @@ TEST_F(OffloadUtilsTest, GetClatEgressEtherProgFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetClatIngressMapFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getClatIngressMapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -135,8 +127,6 @@ TEST_F(OffloadUtilsTest, GetClatIngressMapFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetClatIngressRawIpProgFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getClatIngressProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -144,8 +134,6 @@ TEST_F(OffloadUtilsTest, GetClatIngressRawIpProgFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetClatIngressEtherProgFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getClatIngressProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -153,8 +141,6 @@ TEST_F(OffloadUtilsTest, GetClatIngressEtherProgFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetTetherIngressMapFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getTetherIngressMapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -175,8 +161,6 @@ TEST_F(OffloadUtilsTest, GetTetherIngressRawIpProgFd) {
 TEST_F(OffloadUtilsTest, GetTetherIngressEtherProgFd) {
     // Currently only implementing downstream direction offload.
     // RX Ether -> TX Ether does not require header adjustments
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getTetherIngressProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -184,8 +168,6 @@ TEST_F(OffloadUtilsTest, GetTetherIngressEtherProgFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetTetherStatsMapFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getTetherStatsMapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
@@ -193,16 +175,11 @@ TEST_F(OffloadUtilsTest, GetTetherStatsMapFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetTetherLimitMapFd) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int fd = getTetherLimitMapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
-
-// The SKIP_IF_BPF_NOT_SUPPORTED macro is effectively a check for 4.9+ kernel
-// combined with a launched on P device.  Ie. it's a test for 4.9-P or better.
 
 // NET_SCH_INGRESS is only enabled starting with 4.9-Q and as such we need
 // a separate way to test for this...
@@ -247,9 +224,6 @@ bool kernelSupportsNetClsBpf(void) {
 #define LOOPBACK_IFINDEX 1
 
 TEST_F(OffloadUtilsTest, AttachReplaceDetachClsactLo) {
-    // Technically does not depend on ebpf, but does depend on clsact,
-    // and we do not really care if it works on pre-4.9-Q anyway.
-    SKIP_IF_BPF_NOT_SUPPORTED;
     if (!kernelSupportsNetSchIngress()) return;
 
     // This attaches and detaches a configuration-less and thus no-op clsact
@@ -261,8 +235,6 @@ TEST_F(OffloadUtilsTest, AttachReplaceDetachClsactLo) {
 }
 
 static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool ethernet) {
-    // This test requires kernel 4.9-Q or better
-    SKIP_IF_BPF_NOT_SUPPORTED;
     if (!kernelSupportsNetSchIngress()) return;
     if (!kernelSupportsNetClsBpf()) return;
 

@@ -67,15 +67,11 @@ class NetlinkListenerTest : public testing::Test {
     BpfMap<uint64_t, UidTagValue> mCookieTagMap;
 
     void SetUp() {
-        SKIP_IF_BPF_NOT_SUPPORTED;
-
         mCookieTagMap.reset(android::bpf::mapRetrieveRW(COOKIE_TAG_MAP_PATH));
         ASSERT_TRUE(mCookieTagMap.isValid());
     }
 
     void TearDown() {
-        SKIP_IF_BPF_NOT_SUPPORTED;
-
         const auto deleteTestCookieEntries = [](const uint64_t& key, const UidTagValue& value,
                                                 BpfMap<uint64_t, UidTagValue>& map) {
             if ((value.uid == TEST_UID) && (value.tag == TEST_TAG)) {
@@ -152,14 +148,10 @@ class NetlinkListenerTest : public testing::Test {
 };
 
 TEST_F(NetlinkListenerTest, TestAllSocketUntagged) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     checkMassiveSocketDestroy(10, false);
     checkMassiveSocketDestroy(100, false);
 }
 
 TEST_F(NetlinkListenerTest, TestSkDestroyError) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     checkMassiveSocketDestroy(32500, true);
 }
