@@ -52,9 +52,8 @@ public:
 
     std::string toString() const;
     bool appliesToUser(uid_t uid) const;
-    [[nodiscard]] int addUsers(const UidRanges& uidRanges, const std::set<uid_t>& protectableUsers);
-    [[nodiscard]] int removeUsers(const UidRanges& uidRanges,
-                                  const std::set<uid_t>& protectableUsers);
+    [[nodiscard]] int addUsers(const UidRanges& uidRanges);
+    [[nodiscard]] int removeUsers(const UidRanges& uidRanges);
     bool isSecure() const;
     bool isPhysical() { return getType() == PHYSICAL; }
     bool isVirtual() { return getType() == VIRTUAL; }
@@ -72,9 +71,6 @@ private:
         REMOVE,
         ADD,
     };
-
-    int maybeCloseSockets(Action action, const UidRanges& uidRanges,
-                          const std::set<uid_t>& protectableUsers);
 };
 
 }  // namespace android::net
