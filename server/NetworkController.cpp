@@ -128,7 +128,7 @@ int NetworkController::DelegateImpl::removeFallthrough(const std::string& physic
 int NetworkController::DelegateImpl::modifyFallthrough(const std::string& physicalInterface,
                                                        Permission permission, bool add) {
     for (const auto& entry : mNetworkController->mNetworks) {
-        if (entry.second->getType() == Network::VIRTUAL) {
+        if (entry.second->isVirtual()) {
             if (int ret = modifyFallthrough(entry.first, physicalInterface, permission, add)) {
                 return ret;
             }
@@ -178,7 +178,7 @@ int NetworkController::setDefaultNetwork(unsigned netId) {
             ALOGE("no such netId %u", netId);
             return -ENONET;
         }
-        if (network->getType() != Network::PHYSICAL) {
+        if (!network->isPhysical()) {
             ALOGE("cannot set default to non-physical network with netId %u", netId);
             return -EINVAL;
         }
@@ -189,7 +189,7 @@ int NetworkController::setDefaultNetwork(unsigned netId) {
 
     if (mDefaultNetId != NETID_UNSET) {
         Network* network = getNetworkLocked(mDefaultNetId);
-        if (!network || network->getType() != Network::PHYSICAL) {
+        if (!network || !network->isPhysical()) {
             ALOGE("cannot find previously set default network with netId %u", mDefaultNetId);
             return -ESRCH;
         }
@@ -229,7 +229,7 @@ uint32_t NetworkController::getNetworkForDnsLocked(unsigned* netId, uid_t uid) c
         // servers (through the default network). Otherwise, the query is guaranteed to fail.
         // http://b/29498052
         Network *network = getNetworkLocked(*netId);
-        if (network && network->getType() == Network::VIRTUAL && !resolv_has_nameservers(*netId)) {
+        if (network && network->isVirtual() && !resolv_has_nameservers(*netId)) {
             *netId = mDefaultNetId;
         }
     } else {
@@ -357,7 +357,7 @@ bool NetworkController::isVirtualNetwork(unsigned netId) const {
 
 bool NetworkController::isVirtualNetworkLocked(unsigned netId) const {
     Network* network = getNetworkLocked(netId);
-    return network && network->getType() == Network::VIRTUAL;
+    return network && network->isVirtual();
 }
 
 int NetworkController::createPhysicalNetworkLocked(unsigned netId, Permission permission) {
@@ -466,7 +466,7 @@ int NetworkController::destroyNetwork(unsigned netId) {
             }
         }
         mDefaultNetId = NETID_UNSET;
-    } else if (network->getType() == Network::VIRTUAL) {
+    } else if (network->isVirtual()) {
         if (int err = modifyFallthroughLocked(netId, false)) {
             if (!ret) {
                 ret = err;
@@ -562,7 +562,7 @@ int NetworkController::setPermissionForNetworks(Permission permission,
             ALOGE("no such netId %u", netId);
             return -ENONET;
         }
-        if (network->getType() != Network::PHYSICAL) {
+        if (!network->isPhysical()) {
             ALOGE("cannot set permissions on non-physical network with netId %u", netId);
             return -EINVAL;
         }
@@ -581,9 +581,8 @@ int isWrongNetworkForUidRanges(unsigned netId, Network* network) {
         ALOGE("no such netId %u", netId);
         return -ENONET;
     }
-    const Network::Type networkType = network->getType();
-    if (networkType != Network::VIRTUAL) {
-        ALOGE("cannot add/remove users to/from network type %d with netId %u", networkType, netId);
+    if (!network->isVirtual()) {
+        ALOGE("cannot add/remove users to/from network %u, type %d", netId, network->getType());
         return -EINVAL;
     }
     return 0;
@@ -709,7 +708,7 @@ void NetworkController::dump(DumpWriter& dw) {
     for (const auto& i : mNetworks) {
         Network* network = i.second;
         dw.println(network->toString());
-        if (network->getType() == Network::PHYSICAL) {
+        if (network->isPhysical()) {
             dw.incIndent();
             Permission permission = reinterpret_cast<PhysicalNetwork*>(network)->getPermission();
             dw.println("Required permission: %s", permissionToName(permission));
@@ -752,10 +751,8 @@ Network* NetworkController::getNetworkLocked(unsigned netId) const {
 
 VirtualNetwork* NetworkController::getVirtualNetworkForUserLocked(uid_t uid) const {
     for (const auto& [_, network] : mNetworks) {
-        if (network->getType() == Network::VIRTUAL) {
-            if (network->appliesToUser(uid)) {
-                return static_cast<VirtualNetwork*>(network);
-            }
+        if (network->isVirtual() && network->appliesToUser(uid)) {
+            return static_cast<VirtualNetwork*>(network);
         }
     }
     return nullptr;
@@ -786,7 +783,7 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
         return 0;
     }
     // If the UID wants to use a VPN, it can do so if and only if the VPN applies to the UID.
-    if (network->getType() == Network::VIRTUAL) {
+    if (network->isVirtual()) {
         return network->appliesToUser(uid) ? 0 : -EPERM;
     }
     // If a VPN applies to the UID, and the VPN is secure (i.e., not bypassable), then the UID can
@@ -853,7 +850,7 @@ int NetworkController::modifyFallthroughLocked(unsigned vpnNetId, bool add) {
         ALOGE("cannot find previously set default network with netId %u", mDefaultNetId);
         return -ESRCH;
     }
-    if (network->getType() != Network::PHYSICAL) {
+    if (!network->isPhysical()) {
         ALOGE("inconceivable! default network must be a physical network");
         return -EINVAL;
     }
@@ -871,7 +868,7 @@ void NetworkController::updateTcpSocketMonitorPolling() {
     bool physicalNetworkExists = false;
     for (const auto& entry : mNetworks) {
         const auto& network = entry.second;
-        if (network->getType() == Network::PHYSICAL && network->getNetId() >= MIN_NET_ID) {
+        if (network->isPhysical() && network->getNetId() >= MIN_NET_ID) {
             physicalNetworkExists = true;
             break;
         }
