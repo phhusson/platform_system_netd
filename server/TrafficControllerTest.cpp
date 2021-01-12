@@ -75,7 +75,6 @@ class TrafficControllerTest : public ::testing::Test {
 
     void SetUp() {
         std::lock_guard guard(mTc.mMutex);
-        SKIP_IF_BPF_NOT_SUPPORTED;
         ASSERT_EQ(0, setrlimitForTest());
 
         mFakeCookieTagMap.reset(createMap(BPF_MAP_TYPE_HASH, sizeof(uint64_t), sizeof(UidTagValue),
@@ -316,8 +315,6 @@ class TrafficControllerTest : public ::testing::Test {
 };
 
 TEST_F(TrafficControllerTest, TestTagSocketV4) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uint64_t sockCookie;
     int v4socket = setUpSocketAndTag(AF_INET, &sockCookie, TEST_TAG, TEST_UID, TEST_UID);
     expectUidTag(sockCookie, TEST_UID, TEST_TAG);
@@ -327,8 +324,6 @@ TEST_F(TrafficControllerTest, TestTagSocketV4) {
 }
 
 TEST_F(TrafficControllerTest, TestReTagSocket) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uint64_t sockCookie;
     int v4socket = setUpSocketAndTag(AF_INET, &sockCookie, TEST_TAG, TEST_UID, TEST_UID);
     expectUidTag(sockCookie, TEST_UID, TEST_TAG);
@@ -337,8 +332,6 @@ TEST_F(TrafficControllerTest, TestReTagSocket) {
 }
 
 TEST_F(TrafficControllerTest, TestTagTwoSockets) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uint64_t sockCookie1;
     uint64_t sockCookie2;
     int v4socket1 = setUpSocketAndTag(AF_INET, &sockCookie1, TEST_TAG, TEST_UID, TEST_UID);
@@ -352,8 +345,6 @@ TEST_F(TrafficControllerTest, TestTagTwoSockets) {
 }
 
 TEST_F(TrafficControllerTest, TestTagSocketV6) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uint64_t sockCookie;
     int v6socket = setUpSocketAndTag(AF_INET6, &sockCookie, TEST_TAG, TEST_UID, TEST_UID);
     expectUidTag(sockCookie, TEST_UID, TEST_TAG);
@@ -363,16 +354,12 @@ TEST_F(TrafficControllerTest, TestTagSocketV6) {
 }
 
 TEST_F(TrafficControllerTest, TestTagInvalidSocket) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int invalidSocket = -1;
     ASSERT_GT(0, mTc.tagSocket(invalidSocket, TEST_TAG, TEST_UID, TEST_UID));
     expectMapEmpty(mFakeCookieTagMap);
 }
 
 TEST_F(TrafficControllerTest, TestTagSocketWithoutPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
     ASSERT_NE(-1, sock);
     ASSERT_EQ(-EPERM, mTc.tagSocket(sock, TEST_TAG, TEST_UID, TEST_UID2));
@@ -380,8 +367,6 @@ TEST_F(TrafficControllerTest, TestTagSocketWithoutPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestTagSocketWithPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     // Grant permission to calling uid.
     std::vector<uid_t> callingUid = {TEST_UID2};
     mTc.setPermissionForUids(INetd::PERMISSION_UPDATE_DEVICE_STATS, callingUid);
@@ -400,8 +385,6 @@ TEST_F(TrafficControllerTest, TestTagSocketWithPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestUntagInvalidSocket) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int invalidSocket = -1;
     ASSERT_GT(0, mTc.untagSocket(invalidSocket));
     int v4socket = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -410,8 +393,6 @@ TEST_F(TrafficControllerTest, TestUntagInvalidSocket) {
 }
 
 TEST_F(TrafficControllerTest, TestTagSocketReachLimitFail) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uid_t uid = TEST_UID;
     StatsKey tagStatsMapKey[4];
     for (int i = 0; i < 3; i++) {
@@ -423,8 +404,6 @@ TEST_F(TrafficControllerTest, TestTagSocketReachLimitFail) {
 }
 
 TEST_F(TrafficControllerTest, TestTagSocketReachTotalLimitFail) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     StatsKey tagStatsMapKey[4];
     for (int i = 0; i < 4; i++) {
         uint64_t cookie = TEST_COOKIE + i;
@@ -436,8 +415,6 @@ TEST_F(TrafficControllerTest, TestTagSocketReachTotalLimitFail) {
 }
 
 TEST_F(TrafficControllerTest, TestSetCounterSet) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uid_t callingUid = TEST_UID2;
     addPrivilegedUid(callingUid);
     ASSERT_EQ(0, mTc.setCounterSet(TEST_COUNTERSET, TEST_UID, callingUid));
@@ -451,8 +428,6 @@ TEST_F(TrafficControllerTest, TestSetCounterSet) {
 }
 
 TEST_F(TrafficControllerTest, TestSetCounterSetWithoutPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     ASSERT_EQ(-EPERM, mTc.setCounterSet(TEST_COUNTERSET, TEST_UID, TEST_UID2));
     uid_t uid = TEST_UID;
     ASSERT_FALSE(mFakeUidCounterSetMap.readValue(uid).ok());
@@ -460,8 +435,6 @@ TEST_F(TrafficControllerTest, TestSetCounterSetWithoutPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestSetInvalidCounterSet) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uid_t callingUid = TEST_UID2;
     addPrivilegedUid(callingUid);
     ASSERT_GT(0, mTc.setCounterSet(OVERFLOW_COUNTERSET, TEST_UID, callingUid));
@@ -471,8 +444,6 @@ TEST_F(TrafficControllerTest, TestSetInvalidCounterSet) {
 }
 
 TEST_F(TrafficControllerTest, TestDeleteTagDataWithoutPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uint64_t cookie = 1;
     uid_t uid = TEST_UID;
     uint32_t tag = TEST_TAG;
@@ -484,8 +455,6 @@ TEST_F(TrafficControllerTest, TestDeleteTagDataWithoutPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestDeleteTagData) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uid_t callingUid = TEST_UID2;
     addPrivilegedUid(callingUid);
     uint64_t cookie = 1;
@@ -511,8 +480,6 @@ TEST_F(TrafficControllerTest, TestDeleteTagData) {
 }
 
 TEST_F(TrafficControllerTest, TestDeleteAllUidData) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uid_t callingUid = TEST_UID2;
     addPrivilegedUid(callingUid);
     uint64_t cookie = 1;
@@ -530,8 +497,6 @@ TEST_F(TrafficControllerTest, TestDeleteAllUidData) {
 }
 
 TEST_F(TrafficControllerTest, TestDeleteDataWithTwoTags) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uid_t callingUid = TEST_UID2;
     addPrivilegedUid(callingUid);
     uint64_t cookie1 = 1;
@@ -560,8 +525,6 @@ TEST_F(TrafficControllerTest, TestDeleteDataWithTwoTags) {
 }
 
 TEST_F(TrafficControllerTest, TestDeleteDataWithTwoUids) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uid_t callingUid = TEST_UID2;
     addPrivilegedUid(callingUid);
     uint64_t cookie1 = 1;
@@ -603,8 +566,6 @@ TEST_F(TrafficControllerTest, TestDeleteDataWithTwoUids) {
 }
 
 TEST_F(TrafficControllerTest, TestUpdateOwnerMapEntry) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     uint32_t uid = TEST_UID;
     ASSERT_TRUE(isOk(mTc.updateOwnerMapEntry(STANDBY_MATCH, uid, DENY, DENYLIST)));
     Result<UidOwnerValue> value = mFakeUidOwnerMap.readValue(uid);
@@ -630,8 +591,6 @@ TEST_F(TrafficControllerTest, TestUpdateOwnerMapEntry) {
 }
 
 TEST_F(TrafficControllerTest, TestChangeUidOwnerRule) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     checkUidOwnerRuleForChain(DOZABLE, DOZABLE_MATCH);
     checkUidOwnerRuleForChain(STANDBY, STANDBY_MATCH);
     checkUidOwnerRuleForChain(POWERSAVE, POWERSAVE_MATCH);
@@ -641,8 +600,6 @@ TEST_F(TrafficControllerTest, TestChangeUidOwnerRule) {
 }
 
 TEST_F(TrafficControllerTest, TestReplaceUidOwnerMap) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<int32_t> uids = {TEST_UID, TEST_UID2, TEST_UID3};
     checkUidMapReplace("fw_dozable", uids, DOZABLE_MATCH);
     checkUidMapReplace("fw_standby", uids, STANDBY_MATCH);
@@ -652,8 +609,6 @@ TEST_F(TrafficControllerTest, TestReplaceUidOwnerMap) {
 }
 
 TEST_F(TrafficControllerTest, TestReplaceSameChain) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<int32_t> uids = {TEST_UID, TEST_UID2, TEST_UID3};
     checkUidMapReplace("fw_dozable", uids, DOZABLE_MATCH);
     std::vector<int32_t> newUids = {TEST_UID2, TEST_UID3};
@@ -661,8 +616,6 @@ TEST_F(TrafficControllerTest, TestReplaceSameChain) {
 }
 
 TEST_F(TrafficControllerTest, TestDenylistUidMatch) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uint32_t> appUids = {1000, 1001, 10012};
     ASSERT_TRUE(isOk(
             mTc.updateUidOwnerMap(appUids, PENALTY_BOX_MATCH, BandwidthController::IptOpInsert)));
@@ -673,8 +626,6 @@ TEST_F(TrafficControllerTest, TestDenylistUidMatch) {
 }
 
 TEST_F(TrafficControllerTest, TestAllowlistUidMatch) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uint32_t> appUids = {1000, 1001, 10012};
     ASSERT_TRUE(isOk(
             mTc.updateUidOwnerMap(appUids, HAPPY_BOX_MATCH, BandwidthController::IptOpInsert)));
@@ -685,8 +636,6 @@ TEST_F(TrafficControllerTest, TestAllowlistUidMatch) {
 }
 
 TEST_F(TrafficControllerTest, TestReplaceMatchUid) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uint32_t> appUids = {1000, 1001, 10012};
     // Add appUids to the denylist and expect that their values are all PENALTY_BOX_MATCH.
     ASSERT_TRUE(isOk(
@@ -711,8 +660,6 @@ TEST_F(TrafficControllerTest, TestReplaceMatchUid) {
 }
 
 TEST_F(TrafficControllerTest, TestDeleteWrongMatchSilentlyFails) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uint32_t> appUids = {1000, 1001, 10012};
     // If the uid does not exist in the map, trying to delete a rule about it will fail.
     ASSERT_FALSE(isOk(
@@ -734,8 +681,6 @@ TEST_F(TrafficControllerTest, TestDeleteWrongMatchSilentlyFails) {
 }
 
 TEST_F(TrafficControllerTest, TestAddUidInterfaceFilteringRules) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int iif0 = 15;
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif0, {1000, 1001})));
     expectUidOwnerMapValues({1000, 1001}, IIF_MATCH, iif0);
@@ -755,8 +700,6 @@ TEST_F(TrafficControllerTest, TestAddUidInterfaceFilteringRules) {
 }
 
 TEST_F(TrafficControllerTest, TestRemoveUidInterfaceFilteringRules) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int iif0 = 15;
     int iif1 = 16;
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif0, {1000, 1001})));
@@ -781,8 +724,6 @@ TEST_F(TrafficControllerTest, TestRemoveUidInterfaceFilteringRules) {
 }
 
 TEST_F(TrafficControllerTest, TestUidInterfaceFilteringRulesCoexistWithExistingMatches) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     // Set up existing PENALTY_BOX_MATCH rules
     ASSERT_TRUE(isOk(mTc.updateUidOwnerMap({1000, 1001, 10012}, PENALTY_BOX_MATCH,
                                            BandwidthController::IptOpInsert)));
@@ -809,8 +750,6 @@ TEST_F(TrafficControllerTest, TestUidInterfaceFilteringRulesCoexistWithExistingM
 }
 
 TEST_F(TrafficControllerTest, TestUidInterfaceFilteringRulesCoexistWithNewMatches) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     int iif1 = 56;
     // Set up existing uid interface rules
     ASSERT_TRUE(isOk(mTc.addUidInterfaceRules(iif1, {10001, 10002})));
@@ -844,8 +783,6 @@ TEST_F(TrafficControllerTest, TestUidInterfaceFilteringRulesCoexistWithNewMatche
 }
 
 TEST_F(TrafficControllerTest, TestGrantInternetPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uid_t> appUids = {TEST_UID, TEST_UID2, TEST_UID3};
 
     mTc.setPermissionForUids(INetd::PERMISSION_INTERNET, appUids);
@@ -854,8 +791,6 @@ TEST_F(TrafficControllerTest, TestGrantInternetPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestRevokeInternetPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uid_t> appUids = {TEST_UID, TEST_UID2, TEST_UID3};
 
     mTc.setPermissionForUids(INetd::PERMISSION_NONE, appUids);
@@ -863,8 +798,6 @@ TEST_F(TrafficControllerTest, TestRevokeInternetPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestPermissionUninstalled) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uid_t> appUids = {TEST_UID, TEST_UID2, TEST_UID3};
 
     mTc.setPermissionForUids(INetd::PERMISSION_UPDATE_DEVICE_STATS, appUids);
@@ -884,8 +817,6 @@ TEST_F(TrafficControllerTest, TestPermissionUninstalled) {
 }
 
 TEST_F(TrafficControllerTest, TestGrantUpdateStatsPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uid_t> appUids = {TEST_UID, TEST_UID2, TEST_UID3};
 
     mTc.setPermissionForUids(INetd::PERMISSION_UPDATE_DEVICE_STATS, appUids);
@@ -898,8 +829,6 @@ TEST_F(TrafficControllerTest, TestGrantUpdateStatsPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestRevokeUpdateStatsPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uid_t> appUids = {TEST_UID, TEST_UID2, TEST_UID3};
 
     mTc.setPermissionForUids(INetd::PERMISSION_UPDATE_DEVICE_STATS, appUids);
@@ -916,8 +845,6 @@ TEST_F(TrafficControllerTest, TestRevokeUpdateStatsPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestGrantWrongPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uid_t> appUids = {TEST_UID, TEST_UID2, TEST_UID3};
 
     mTc.setPermissionForUids(INetd::PERMISSION_NONE, appUids);
@@ -926,8 +853,6 @@ TEST_F(TrafficControllerTest, TestGrantWrongPermission) {
 }
 
 TEST_F(TrafficControllerTest, TestGrantDuplicatePermissionSlientlyFail) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<uid_t> appUids = {TEST_UID, TEST_UID2, TEST_UID3};
 
     mTc.setPermissionForUids(INetd::PERMISSION_INTERNET, appUids);
