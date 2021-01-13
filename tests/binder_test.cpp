@@ -67,6 +67,7 @@
 #include "NetdClient.h"
 #include "NetdConstants.h"
 #include "NetworkController.h"
+#include "RouteController.h"
 #include "SockDiag.h"
 #include "TestUnsolService.h"
 #include "XfrmController.h"
@@ -105,6 +106,8 @@ using android::net::INetd;
 using android::net::InterfaceConfigurationParcel;
 using android::net::InterfaceController;
 using android::net::MarkMaskParcel;
+using android::net::RULE_PRIORITY_SECURE_VPN;
+using android::net::RULE_PRIORITY_VPN_FALLTHROUGH;
 using android::net::SockDiag;
 using android::net::TetherOffloadRuleParcel;
 using android::net::TetherStatsParcel;
@@ -568,8 +571,6 @@ TEST_F(NetdBinderTest, NetworkInterfaces) {
 }
 
 TEST_F(NetdBinderTest, NetworkUidRules) {
-    const uint32_t RULE_PRIORITY_SECURE_VPN = 12000;
-
     EXPECT_TRUE(mNetd->networkCreateVpn(TEST_NETID1, true).isOk());
     EXPECT_EQ(EEXIST, mNetd->networkCreateVpn(TEST_NETID1, true).serviceSpecificErrorCode());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
@@ -3097,8 +3098,6 @@ void checkUidsInPermissionMap(std::vector<int32_t>& uids, bool exist) {
 }  // namespace
 
 TEST_F(NetdBinderTest, TestInternetPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<int32_t> appUids = {TEST_UID1, TEST_UID2};
 
     mNetd->trafficSetNetPermForUids(INetd::PERMISSION_INTERNET, appUids);
@@ -3344,8 +3343,6 @@ class ScopedUidChange {
     uid_t mStoredUid;
 };
 
-constexpr uint32_t RULE_PRIORITY_VPN_FALLTHROUGH = 21000;
-
 void clearQueue(int tunFd) {
     char buf[4096];
     int ret;
@@ -3568,8 +3565,6 @@ TetherOffloadRuleParcel makeTetherOffloadRule(int inputInterfaceIndex, int outpu
 }  // namespace
 
 TEST_F(NetdBinderTest, TetherOffloadRule) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     // TODO: Perhaps verify invalid interface index once the netd handle the error in methods.
     constexpr uint32_t kIfaceInt = 101;
     constexpr uint32_t kIfaceExt = 102;

@@ -56,8 +56,6 @@ class BpfBasicTest : public testing::Test {
 };
 
 TEST_F(BpfBasicTest, TestCgroupMounted) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::string cg2_path;
     ASSERT_EQ(true, CgroupGetControllerPath(CGROUPV2_CONTROLLER_NAME, &cg2_path));
     ASSERT_EQ(0, access(cg2_path.c_str(), R_OK));
@@ -65,8 +63,6 @@ TEST_F(BpfBasicTest, TestCgroupMounted) {
 }
 
 TEST_F(BpfBasicTest, TestTrafficControllerSetUp) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     ASSERT_EQ(0, access(BPF_EGRESS_PROG_PATH, R_OK));
     ASSERT_EQ(0, access(BPF_INGRESS_PROG_PATH, R_OK));
     ASSERT_EQ(0, access(XT_BPF_INGRESS_PROG_PATH, R_OK));
@@ -89,8 +85,6 @@ TEST_F(BpfBasicTest, TestSocketFilterSetUp) {
 }
 
 TEST_F(BpfBasicTest, TestTagSocket) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     BpfMap<uint64_t, UidTagValue> cookieTagMap(COOKIE_TAG_MAP_PATH);
     ASSERT_LE(0, cookieTagMap.getMap());
     int sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -109,8 +103,6 @@ TEST_F(BpfBasicTest, TestTagSocket) {
 }
 
 TEST_F(BpfBasicTest, TestCloseSocketWithoutUntag) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     BpfMap<uint64_t, UidTagValue> cookieTagMap(COOKIE_TAG_MAP_PATH);
     ASSERT_LE(0, cookieTagMap.getMap());
     int sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -136,8 +128,6 @@ TEST_F(BpfBasicTest, TestCloseSocketWithoutUntag) {
 }
 
 TEST_F(BpfBasicTest, TestChangeCounterSet) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     BpfMap<uint32_t, uint8_t> uidCounterSetMap(UID_COUNTERSET_MAP_PATH);
     ASSERT_LE(0, uidCounterSetMap.getMap());
     ASSERT_EQ(0, qtaguid_setCounterSet(TEST_COUNTERSET, TEST_UID));
@@ -152,8 +142,6 @@ TEST_F(BpfBasicTest, TestChangeCounterSet) {
 }
 
 TEST_F(BpfBasicTest, TestDeleteTagData) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     BpfMap<StatsKey, StatsValue> statsMapA(STATS_MAP_A_PATH);
     ASSERT_LE(0, statsMapA.getMap());
     BpfMap<StatsKey, StatsValue> statsMapB(STATS_MAP_B_PATH);

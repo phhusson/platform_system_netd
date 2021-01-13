@@ -72,8 +72,6 @@ protected:
     BpfMap<uint32_t, uint64_t> mFakeTetherLimitMap{BPF_MAP_TYPE_HASH, TEST_MAP_SIZE};
 
     void SetUp() {
-        SKIP_IF_BPF_NOT_SUPPORTED;
-
         ASSERT_TRUE(mFakeTetherStatsMap.isValid());
         ASSERT_TRUE(mFakeTetherLimitMap.isValid());
 
@@ -486,8 +484,6 @@ TEST_F(TetherControllerTest, TestGetTetherStats) {
 }
 
 TEST_F(TetherControllerTest, TestTetherOffloadGetStats) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     updateMaps(101, 100, 10, 200, 20);
     updateMaps(102, 300, 30, 400, 40);
     const TetherOffloadStats expected0{101, 100, 10, 200, 20};
@@ -503,8 +499,6 @@ TEST_F(TetherControllerTest, TestTetherOffloadGetStats) {
 }
 
 TEST_F(TetherControllerTest, TestTetherOffloadSetQuota) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     const uint32_t ifindex = 100;
     const uint64_t minQuota = 0;
     const uint64_t maxQuota = std::numeric_limits<int64_t>::max();
