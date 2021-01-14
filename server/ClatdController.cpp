@@ -73,36 +73,9 @@ namespace net {
 void ClatdController::init(void) {
     std::lock_guard guard(mutex);
 
-    // TODO: should refactor into separate function for testability
-    if (!bpf::isBpfSupported()) {
-        ALOGI("Pre-4.9 kernel or pre-P api shipping level - disabling clat ebpf.");
-        mClatEbpfMode = ClatEbpfDisabled;
-        return;
-    }
-
-    // We know the device initially shipped with at least P...,
-    // but did it ship with at least Q?
-
-    uint64_t api_level = base::GetUintProperty<uint64_t>("ro.product.first_api_level", 0);
-    if (api_level == 0) {
-        ALOGE("Cannot determine initial API level of the device.");
-        api_level = base::GetUintProperty<uint64_t>("ro.build.version.sdk", 0);
-    }
-
-    // Note: MINIMUM_API_REQUIRED is for eBPF as a whole and is thus P
-    if (api_level > bpf::MINIMUM_API_REQUIRED) {
-        ALOGI("4.9+ kernel and device shipped with Q+ - clat ebpf should work.");
-        mClatEbpfMode = ClatEbpfEnabled;
-    } else {
-        // We cannot guarantee that 4.9-P kernels will include NET_CLS_BPF support.
-        ALOGI("4.9+ kernel and device shipped with P - clat ebpf might work.");
-        mClatEbpfMode = ClatEbpfMaybe;
-    }
-
     int rv = getClatEgressMapFd();
     if (rv < 0) {
         ALOGE("getClatEgressMapFd() failure: %s", strerror(-rv));
-        mClatEbpfMode = ClatEbpfDisabled;
         return;
     }
     mClatEgressMap.reset(rv);
@@ -110,7 +83,6 @@ void ClatdController::init(void) {
     rv = getClatIngressMapFd();
     if (rv < 0) {
         ALOGE("getClatIngressMapFd() failure: %s", strerror(-rv));
-        mClatEbpfMode = ClatEbpfDisabled;
         mClatEgressMap.reset(-1);
         return;
     }
@@ -226,8 +198,6 @@ int ClatdController::generateIpv6Address(const char* iface, const in_addr v4,
 }
 
 void ClatdController::maybeStartBpf(const ClatdTracker& tracker) {
-    if (mClatEbpfMode == ClatEbpfDisabled) return;
-
     auto isEthernet = android::net::isEthernet(tracker.iface);
     if (!isEthernet.ok()) {
         ALOGE("isEthernet(%s[%d]) failure: %s", tracker.iface, tracker.ifIndex,
@@ -309,13 +279,8 @@ void ClatdController::maybeStartBpf(const ClatdTracker& tracker) {
 
     rv = tcFilterAddDevEgressClatIpv4(tracker.v4ifIndex, txRawIpProgFd, RAWIP);
     if (rv) {
-        if ((rv == -ENOENT) && (mClatEbpfMode == ClatEbpfMaybe)) {
-            ALOGI("tcFilterAddDevEgressClatIpv4(%d[%s], RAWIP): %s", tracker.v4ifIndex,
-                  tracker.v4iface, strerror(-rv));
-        } else {
-            ALOGE("tcFilterAddDevEgressClatIpv4(%d[%s], RAWIP) failure: %s", tracker.v4ifIndex,
-                  tracker.v4iface, strerror(-rv));
-        }
+        ALOGE("tcFilterAddDevEgressClatIpv4(%d[%s], RAWIP) failure: %s", tracker.v4ifIndex,
+              tracker.v4iface, strerror(-rv));
 
         // The v4- interface clsact is not deleted for unwinding error because once it is created
         // with interface addition, the lifetime is till interface deletion. Moreover, the clsact
@@ -332,13 +297,8 @@ void ClatdController::maybeStartBpf(const ClatdTracker& tracker) {
 
     rv = tcFilterAddDevIngressClatIpv6(tracker.ifIndex, rxProgFd, isEthernet.value());
     if (rv) {
-        if ((rv == -ENOENT) && (mClatEbpfMode == ClatEbpfMaybe)) {
-            ALOGI("tcFilterAddDevIngressClatIpv6(%d[%s], %d): %s", tracker.ifIndex, tracker.iface,
-                  isEthernet.value(), strerror(-rv));
-        } else {
-            ALOGE("tcFilterAddDevIngressClatIpv6(%d[%s], %d) failure: %s", tracker.ifIndex,
-                  tracker.iface, isEthernet.value(), strerror(-rv));
-        }
+        ALOGE("tcFilterAddDevIngressClatIpv6(%d[%s], %d) failure: %s", tracker.ifIndex,
+              tracker.iface, isEthernet.value(), strerror(-rv));
         rv = tcFilterDelDevEgressClatIpv4(tracker.v4ifIndex);
         if (rv) {
             ALOGE("tcFilterDelDevEgressClatIpv4(%d[%s]) failure: %s", tracker.v4ifIndex,
@@ -372,8 +332,6 @@ void ClatdController::setIptablesDropRule(bool add, const char* iface, const cha
 }
 
 void ClatdController::maybeStopBpf(const ClatdTracker& tracker) {
-    if (mClatEbpfMode == ClatEbpfDisabled) return;
-
     int rv = tcFilterDelDevIngressClatIpv6(tracker.ifIndex);
     if (rv < 0) {
         ALOGE("tcFilterDelDevIngressClatIpv6(%d[%s]) failure: %s", tracker.ifIndex, tracker.iface,
