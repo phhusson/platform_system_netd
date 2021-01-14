@@ -322,7 +322,7 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
                             .attr =
                                     {
                                             .nla_len = sizeof(req.options),
-                                            .nla_type = TCA_OPTIONS,
+                                            .nla_type = NLA_F_NESTED | TCA_OPTIONS,
                                     },
                             .fd =
                                     {
