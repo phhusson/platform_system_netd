@@ -181,51 +181,10 @@ TEST_F(OffloadUtilsTest, GetTetherLimitMapFd) {
     close(fd);
 }
 
-// NET_SCH_INGRESS is only enabled starting with 4.9-Q and as such we need
-// a separate way to test for this...
-int doKernelSupportsNetSchIngress(void) {
-    // NOLINTNEXTLINE(cert-env33-c)
-    return system("zcat /proc/config.gz | egrep -q '^CONFIG_NET_SCH_INGRESS=[my]$'");
-}
-
-// NET_CLS_BPF is only enabled starting with 4.9-Q...
-int doKernelSupportsNetClsBpf(void) {
-    // NOLINTNEXTLINE(cert-env33-c)
-    return system("zcat /proc/config.gz | egrep -q '^CONFIG_NET_CLS_BPF=[my]$'");
-}
-
-// Make sure the above functions actually execute correctly rather than failing
-// due to missing binary or execution failure...
-TEST_F(OffloadUtilsTest, KernelSupportsNetFuncs) {
-    // Make sure the file is present and readable and decompressable.
-    // NOLINTNEXTLINE(cert-env33-c)
-    ASSERT_EQ(W_EXITCODE(0, 0), system("zcat /proc/config.gz > /dev/null"));
-
-    int v = doKernelSupportsNetSchIngress();
-    int w = doKernelSupportsNetClsBpf();
-
-    // They should always either return 0 (match) or 1 (no match),
-    // anything else is some sort of exec/environment/etc failure.
-    if (v != W_EXITCODE(1, 0)) ASSERT_EQ(v, W_EXITCODE(0, 0));
-    if (w != W_EXITCODE(1, 0)) ASSERT_EQ(w, W_EXITCODE(0, 0));
-}
-
-// True iff CONFIG_NET_SCH_INGRESS is enabled in /proc/config.gz
-bool kernelSupportsNetSchIngress(void) {
-    return doKernelSupportsNetSchIngress() == W_EXITCODE(0, 0);
-}
-
-// True iff CONFIG_NET_CLS_BPF is enabled in /proc/config.gz
-bool kernelSupportsNetClsBpf(void) {
-    return doKernelSupportsNetClsBpf() == W_EXITCODE(0, 0);
-}
-
 // See Linux kernel source in include/net/flow.h
 #define LOOPBACK_IFINDEX 1
 
 TEST_F(OffloadUtilsTest, AttachReplaceDetachClsactLo) {
-    if (!kernelSupportsNetSchIngress()) return;
-
     // This attaches and detaches a configuration-less and thus no-op clsact
     // qdisc to loopback interface (and it takes fractions of a second)
     EXPECT_EQ(0, tcQdiscAddDevClsact(LOOPBACK_IFINDEX));
@@ -235,9 +194,6 @@ TEST_F(OffloadUtilsTest, AttachReplaceDetachClsactLo) {
 }
 
 static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool ethernet) {
-    if (!kernelSupportsNetSchIngress()) return;
-    if (!kernelSupportsNetClsBpf()) return;
-
     const bool extended =
             (android::bpf::getBpfSupportLevel() >= android::bpf::BpfLevel::EXTENDED_4_14);
     // Older kernels return EINVAL instead of ENOENT due to lacking proper error propagation...
