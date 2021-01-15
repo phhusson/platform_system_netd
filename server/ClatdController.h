@@ -89,17 +89,6 @@ class ClatdController {
                                    in6_addr* v6);
     static void makeChecksumNeutral(in6_addr* v6, const in_addr v4, const in6_addr& nat64Prefix);
 
-    enum eClatEbpfMode {
-        ClatEbpfDisabled,  //  <4.9 kernel ||  <P api shipping level -- will not work
-        ClatEbpfMaybe,     // >=4.9 kernel &&   P api shipping level -- might work
-        ClatEbpfEnabled,   // >=4.9 kernel && >=Q api shipping level -- must work
-    };
-    eClatEbpfMode mClatEbpfMode GUARDED_BY(mutex);
-    eClatEbpfMode getEbpfMode() EXCLUDES(mutex) {
-        std::lock_guard guard(mutex);
-        return mClatEbpfMode;
-    }
-
     bpf::BpfMap<ClatEgressKey, ClatEgressValue> mClatEgressMap GUARDED_BY(mutex);
     bpf::BpfMap<ClatIngressKey, ClatIngressValue> mClatIngressMap GUARDED_BY(mutex);
 
