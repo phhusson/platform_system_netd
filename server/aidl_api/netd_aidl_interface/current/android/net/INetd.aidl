@@ -147,8 +147,10 @@ interface INetd {
   const int PERMISSION_INTERNET = 4;
   const int PERMISSION_UPDATE_DEVICE_STATS = 8;
   const int PERMISSION_UNINSTALLED = -1;
+  /* @deprecated use FIREWALL_ALLOWLIST. */
   const int FIREWALL_WHITELIST = 0;
   const int FIREWALL_ALLOWLIST = 0;
+  /* @deprecated use FIREWALL_DENYLIST. */
   const int FIREWALL_BLACKLIST = 1;
   const int FIREWALL_DENYLIST = 1;
   const int FIREWALL_RULE_ALLOW = 1;
