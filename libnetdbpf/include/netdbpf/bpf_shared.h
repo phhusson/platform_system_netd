@@ -191,10 +191,10 @@ typedef struct {
 #define TETHER_INGRESS_PROG_RAWIP_NAME "prog_offload_schedcls_ingress_tether_rawip"
 #define TETHER_INGRESS_PROG_ETHER_NAME "prog_offload_schedcls_ingress_tether_ether"
 
-#define TETHER_INGRESS_PROG_RAWIP_PATH BPF_PATH "/" TETHER_INGRESS_PROG_RAWIP_NAME
-#define TETHER_INGRESS_PROG_ETHER_PATH BPF_PATH "/" TETHER_INGRESS_PROG_ETHER_NAME
+#define TETHER_INGRESS_PROG_RAWIP_PATH BPF_PATH "/tethering/" TETHER_INGRESS_PROG_RAWIP_NAME
+#define TETHER_INGRESS_PROG_ETHER_PATH BPF_PATH "/tethering/" TETHER_INGRESS_PROG_ETHER_NAME
 
-#define TETHER_INGRESS_MAP_PATH BPF_PATH "/map_offload_tether_ingress_map"
+#define TETHER_INGRESS_MAP_PATH BPF_PATH "/tethering/map_offload_tether_ingress_map"
 
 typedef struct {
     uint32_t iif;            // The input interface index
@@ -210,7 +210,7 @@ typedef struct {
     uint16_t pmtu;            // The maximum L3 output path/route mtu
 } TetherIngressValue;
 
-#define TETHER_STATS_MAP_PATH BPF_PATH "/map_offload_tether_stats_map"
+#define TETHER_STATS_MAP_PATH BPF_PATH "/tethering/map_offload_tether_stats_map"
 
 typedef struct {
     uint64_t rxPackets;
@@ -221,6 +221,6 @@ typedef struct {
     uint64_t txErrors;
 } TetherStatsValue;
 
-#define TETHER_LIMIT_MAP_PATH BPF_PATH "/map_offload_tether_limit_map"
+#define TETHER_LIMIT_MAP_PATH BPF_PATH "/tethering/map_offload_tether_limit_map"
 
 #endif  // NETDBPF_BPF_SHARED_H
