@@ -39,8 +39,9 @@ constexpr bool EGRESS = false;
 constexpr bool INGRESS = true;
 
 // The priority of clat/tether hooks - smaller is higher priority.
-constexpr uint16_t PRIO_CLAT = 1;
-constexpr uint16_t PRIO_TETHER = 2;
+// TC tether is higher priority then TC clat to match XDP winning over TC.
+constexpr uint16_t PRIO_TETHER = 1;
+constexpr uint16_t PRIO_CLAT = 2;
 
 // this returns an ARPHRD_* constant or a -errno
 int hardwareAddressType(const std::string& interface);
