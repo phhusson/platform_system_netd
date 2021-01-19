@@ -140,28 +140,28 @@ TEST_F(OffloadUtilsTest, GetClatIngress6EtherProgFd) {
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetTetherIngressMapFd) {
-    int fd = getTetherIngressMapFd();
+TEST_F(OffloadUtilsTest, GetTetherDownstream6MapFd) {
+    int fd = getTetherDownstream6MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetTetherIngressRawIpProgFd) {
+TEST_F(OffloadUtilsTest, GetTetherDownstream6RawIpTcProgFd) {
     // Currently only implementing downstream direction offload.
     // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
     SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
 
-    int fd = getTetherIngressProgFd(RAWIP);
+    int fd = getTetherDownstream6TcProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetTetherIngressEtherProgFd) {
+TEST_F(OffloadUtilsTest, GetTetherDownstream6EtherTcProgFd) {
     // Currently only implementing downstream direction offload.
     // RX Ether -> TX Ether does not require header adjustments
-    int fd = getTetherIngressProgFd(ETHER);
+    int fd = getTetherDownstream6TcProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
@@ -203,7 +203,7 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
 
     int tetherBpfFd = -1;
     if (extended && ingress) {
-        tetherBpfFd = getTetherIngressProgFd(ethernet);
+        tetherBpfFd = getTetherDownstream6TcProgFd(ethernet);
         ASSERT_GE(tetherBpfFd, 3);
     }
 

@@ -237,16 +237,16 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
     static constexpr char name_clat_tx_ether[] = CLAT_EGRESS4_PROG_ETHER_NAME FSOBJ_SUFFIX;
 
     // This macro expands (from header files) to:
-    //   prog_offload_schedcls_ingress_tether_rawip:[*fsobj]
+    //   prog_offload_schedcls_tether_downstream6_rawip:[*fsobj]
     // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
     // (also compatible with anything that has 0 size L2 header)
-    static constexpr char name_tether_rawip[] = TETHER_INGRESS_PROG_RAWIP_NAME FSOBJ_SUFFIX;
+    static constexpr char name_tether_rawip[] = TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME FSOBJ_SUFFIX;
 
     // This macro expands (from header files) to:
-    //   prog_offload_schedcls_ingress_tether_ether:[*fsobj]
+    //   prog_offload_schedcls_tether_downstream6_ether:[*fsobj]
     // and is the name of the pinned ingress ebpf program for ARPHRD_ETHER interfaces.
     // (also compatible with anything that has standard ethernet header)
-    static constexpr char name_tether_ether[] = TETHER_INGRESS_PROG_ETHER_NAME FSOBJ_SUFFIX;
+    static constexpr char name_tether_ether[] = TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
 
 #undef FSOBJ_SUFFIX
 
