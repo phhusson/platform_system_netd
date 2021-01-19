@@ -82,6 +82,17 @@ inline int getTetherDownstream6TcProgFd(bool with_ethernet_header) {
     return (fd == -1) ? -errno : fd;
 }
 
+inline int getTetherUpstream6MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(TETHER_UPSTREAM6_MAP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
+inline int getTetherUpstream6TcProgFd(bool with_ethernet_header) {
+    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM6_TC_PROG_ETHER_PATH
+                                                             : TETHER_UPSTREAM6_TC_PROG_RAWIP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
 inline int getTetherStatsMapFd(void) {
     const int fd = bpf::mapRetrieveRW(TETHER_STATS_MAP_PATH);
     return (fd == -1) ? -errno : fd;
