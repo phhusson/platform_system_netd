@@ -227,7 +227,16 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
 
     TetherDownstream6Key key = {
             .iif = static_cast<uint32_t>(tunif),
-            //.neigh6 = ,
+            .neigh6 =
+                    {
+                            .s6_addr32 =
+                                    {
+                                            htonl(0x20010db8),
+                                            0,
+                                            0,
+                                            htonl(1),
+                                    },
+                    },
     };
 
     ethhdr hdr = {
@@ -251,9 +260,13 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
     uint64_t limit = ~0uLL;
     ASSERT_OK(bpfLimitMap.writeValue(k, limit, BPF_NOEXIST));
 
-    // minimal 'acceptable' 40-byte hoplimit 255 IPv6 packet, src ip 2000::
+    // minimal 'acceptable' 40-byte hoplimit 255 IPv6 packet, src ip 2000::, dst ip 2001:db8::1
     uint8_t pkt[mtu] = {
-            0x60, 0, 0, 0, 0, 40, 0, 255, 0x20,
+            // clang-format off
+            0x60, 0, 0, 0, 0, 40, 0, 255,
+            0x20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+            // clang-format on
     };
 
     // Iterate over all packet sizes from minimal ipv6 packet to mtu.
