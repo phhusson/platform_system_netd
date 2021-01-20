@@ -176,25 +176,25 @@ static inline __always_inline int nat64(struct __sk_buff* skb, bool is_ethernet)
     return TC_ACT_OK;
 }
 
-SEC("schedcls/ingress6/clat_ether")
-int sched_cls_ingress6_clat_ether(struct __sk_buff* skb) {
+DEFINE_BPF_PROG("schedcls/ingress6/clat_ether", AID_ROOT, AID_ROOT, sched_cls_ingress6_clat_ether)
+(struct __sk_buff* skb) {
     return nat64(skb, true);
 }
 
-SEC("schedcls/ingress6/clat_rawip")
-int sched_cls_ingress6_clat_rawip(struct __sk_buff* skb) {
+DEFINE_BPF_PROG("schedcls/ingress6/clat_rawip", AID_ROOT, AID_ROOT, sched_cls_ingress6_clat_rawip)
+(struct __sk_buff* skb) {
     return nat64(skb, false);
 }
 
 DEFINE_BPF_MAP(clat_egress4_map, HASH, ClatEgress4Key, ClatEgress4Value, 16)
 
-SEC("schedcls/egress4/clat_ether")
-int sched_cls_egress4_clat_ether(struct __sk_buff* skb) {
+DEFINE_BPF_PROG("schedcls/egress4/clat_ether", AID_ROOT, AID_ROOT, sched_cls_egress4_clat_ether)
+(struct __sk_buff* skb) {
     return TC_ACT_OK;
 }
 
-SEC("schedcls/egress4/clat_rawip")
-int sched_cls_egress4_clat_rawip(struct __sk_buff* skb) {
+DEFINE_BPF_PROG("schedcls/egress4/clat_rawip", AID_ROOT, AID_ROOT, sched_cls_egress4_clat_rawip)
+(struct __sk_buff* skb) {
     void* data = (void*)(long)skb->data;
     const void* data_end = (void*)(long)skb->data_end;
     const struct iphdr* const ip4 = data;
