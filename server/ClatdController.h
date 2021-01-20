@@ -89,8 +89,8 @@ class ClatdController {
                                    in6_addr* v6);
     static void makeChecksumNeutral(in6_addr* v6, const in_addr v4, const in6_addr& nat64Prefix);
 
-    bpf::BpfMap<ClatEgressKey, ClatEgressValue> mClatEgressMap GUARDED_BY(mutex);
-    bpf::BpfMap<ClatIngressKey, ClatIngressValue> mClatIngressMap GUARDED_BY(mutex);
+    bpf::BpfMap<ClatEgress4Key, ClatEgress4Value> mClatEgress4Map GUARDED_BY(mutex);
+    bpf::BpfMap<ClatIngress6Key, ClatIngress6Value> mClatIngress6Map GUARDED_BY(mutex);
 
     void maybeStartBpf(const ClatdTracker& tracker) REQUIRES(mutex);
     void maybeStopBpf(const ClatdTracker& tracker) REQUIRES(mutex);

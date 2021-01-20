@@ -98,43 +98,43 @@ TEST_F(OffloadUtilsTest, IsEthernetOfCellular) {
     ASSERT_FALSE(res.value());
 }
 
-TEST_F(OffloadUtilsTest, GetClatEgressMapFd) {
-    int fd = getClatEgressMapFd();
+TEST_F(OffloadUtilsTest, GetClatEgress4MapFd) {
+    int fd = getClatEgress4MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatEgressRawIpProgFd) {
-    int fd = getClatEgressProgFd(RAWIP);
+TEST_F(OffloadUtilsTest, GetClatEgress4RawIpProgFd) {
+    int fd = getClatEgress4ProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatEgressEtherProgFd) {
-    int fd = getClatEgressProgFd(ETHER);
+TEST_F(OffloadUtilsTest, GetClatEgress4EtherProgFd) {
+    int fd = getClatEgress4ProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatIngressMapFd) {
-    int fd = getClatIngressMapFd();
+TEST_F(OffloadUtilsTest, GetClatIngress6MapFd) {
+    int fd = getClatIngress6MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatIngressRawIpProgFd) {
-    int fd = getClatIngressProgFd(RAWIP);
+TEST_F(OffloadUtilsTest, GetClatIngress6RawIpProgFd) {
+    int fd = getClatIngress6ProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatIngressEtherProgFd) {
-    int fd = getClatIngressProgFd(ETHER);
+TEST_F(OffloadUtilsTest, GetClatIngress6EtherProgFd) {
+    int fd = getClatIngress6ProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
@@ -201,7 +201,7 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
             (android::bpf::getBpfSupportLevel() >= android::bpf::BpfLevel::EXTENDED_4_19) ? ENOENT
                                                                                           : EINVAL;
 
-    int clatBpfFd = ingress ? getClatIngressProgFd(ethernet) : getClatEgressProgFd(ethernet);
+    int clatBpfFd = ingress ? getClatIngress6ProgFd(ethernet) : getClatEgress4ProgFd(ethernet);
     ASSERT_GE(clatBpfFd, 3);
 
     int tetherBpfFd = -1;
