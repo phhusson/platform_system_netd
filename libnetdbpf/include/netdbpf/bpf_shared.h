@@ -149,44 +149,44 @@ typedef struct {
 #define UID_RULES_CONFIGURATION_KEY 1
 #define CURRENT_STATS_MAP_CONFIGURATION_KEY 2
 
-#define CLAT_INGRESS_PROG_RAWIP_NAME "prog_clatd_schedcls_ingress_clat_rawip"
-#define CLAT_INGRESS_PROG_ETHER_NAME "prog_clatd_schedcls_ingress_clat_ether"
+#define CLAT_INGRESS6_PROG_RAWIP_NAME "prog_clatd_schedcls_ingress6_clat_rawip"
+#define CLAT_INGRESS6_PROG_ETHER_NAME "prog_clatd_schedcls_ingress6_clat_ether"
 
-#define CLAT_INGRESS_PROG_RAWIP_PATH BPF_PATH "/" CLAT_INGRESS_PROG_RAWIP_NAME
-#define CLAT_INGRESS_PROG_ETHER_PATH BPF_PATH "/" CLAT_INGRESS_PROG_ETHER_NAME
+#define CLAT_INGRESS6_PROG_RAWIP_PATH BPF_PATH "/" CLAT_INGRESS6_PROG_RAWIP_NAME
+#define CLAT_INGRESS6_PROG_ETHER_PATH BPF_PATH "/" CLAT_INGRESS6_PROG_ETHER_NAME
 
-#define CLAT_INGRESS_MAP_PATH BPF_PATH "/map_clatd_clat_ingress_map"
+#define CLAT_INGRESS6_MAP_PATH BPF_PATH "/map_clatd_clat_ingress6_map"
 
 typedef struct {
     uint32_t iif;            // The input interface index
     struct in6_addr pfx96;   // The source /96 nat64 prefix, bottom 32 bits must be 0
     struct in6_addr local6;  // The full 128-bits of the destination IPv6 address
-} ClatIngressKey;
+} ClatIngress6Key;
 
 typedef struct {
     uint32_t oif;           // The output interface to redirect to (0 means don't redirect)
     struct in_addr local4;  // The destination IPv4 address
-} ClatIngressValue;
+} ClatIngress6Value;
 
-#define CLAT_EGRESS_PROG_RAWIP_NAME "prog_clatd_schedcls_egress_clat_rawip"
-#define CLAT_EGRESS_PROG_ETHER_NAME "prog_clatd_schedcls_egress_clat_ether"
+#define CLAT_EGRESS4_PROG_RAWIP_NAME "prog_clatd_schedcls_egress4_clat_rawip"
+#define CLAT_EGRESS4_PROG_ETHER_NAME "prog_clatd_schedcls_egress4_clat_ether"
 
-#define CLAT_EGRESS_PROG_RAWIP_PATH BPF_PATH "/" CLAT_EGRESS_PROG_RAWIP_NAME
-#define CLAT_EGRESS_PROG_ETHER_PATH BPF_PATH "/" CLAT_EGRESS_PROG_ETHER_NAME
+#define CLAT_EGRESS4_PROG_RAWIP_PATH BPF_PATH "/" CLAT_EGRESS4_PROG_RAWIP_NAME
+#define CLAT_EGRESS4_PROG_ETHER_PATH BPF_PATH "/" CLAT_EGRESS4_PROG_ETHER_NAME
 
-#define CLAT_EGRESS_MAP_PATH BPF_PATH "/map_clatd_clat_egress_map"
+#define CLAT_EGRESS4_MAP_PATH BPF_PATH "/map_clatd_clat_egress4_map"
 
 typedef struct {
     uint32_t iif;           // The input interface index
     struct in_addr local4;  // The source IPv4 address
-} ClatEgressKey;
+} ClatEgress4Key;
 
 typedef struct {
     uint32_t oif;            // The output interface to redirect to
     struct in6_addr local6;  // The full 128-bits of the source IPv6 address
     struct in6_addr pfx96;   // The destination /96 nat64 prefix, bottom 32 bits must be 0
     bool oifIsEthernet;      // Whether the output interface requires ethernet header
-} ClatEgressValue;
+} ClatEgress4Value;
 
 #define TETHER_INGRESS_PROG_RAWIP_NAME "prog_offload_schedcls_ingress_tether_rawip"
 #define TETHER_INGRESS_PROG_ETHER_NAME "prog_offload_schedcls_ingress_tether_ether"
