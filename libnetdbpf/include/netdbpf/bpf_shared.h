@@ -98,26 +98,26 @@ const int IFACE_STATS_MAP_SIZE = 1000;
 const int CONFIGURATION_MAP_SIZE = 2;
 const int UID_OWNER_MAP_SIZE = 2000;
 
-#define BPF_PATH "/sys/fs/bpf"
+#define BPF_PATH "/sys/fs/bpf/"
 
-#define BPF_EGRESS_PROG_PATH BPF_PATH "/prog_netd_cgroupskb_egress_stats"
-#define BPF_INGRESS_PROG_PATH BPF_PATH "/prog_netd_cgroupskb_ingress_stats"
-#define XT_BPF_INGRESS_PROG_PATH BPF_PATH "/prog_netd_skfilter_ingress_xtbpf"
-#define XT_BPF_EGRESS_PROG_PATH BPF_PATH "/prog_netd_skfilter_egress_xtbpf"
-#define XT_BPF_ALLOWLIST_PROG_PATH BPF_PATH "/prog_netd_skfilter_allowlist_xtbpf"
-#define XT_BPF_DENYLIST_PROG_PATH BPF_PATH "/prog_netd_skfilter_denylist_xtbpf"
-#define CGROUP_SOCKET_PROG_PATH BPF_PATH "/prog_netd_cgroupsock_inet_create"
+#define BPF_EGRESS_PROG_PATH BPF_PATH "prog_netd_cgroupskb_egress_stats"
+#define BPF_INGRESS_PROG_PATH BPF_PATH "prog_netd_cgroupskb_ingress_stats"
+#define XT_BPF_INGRESS_PROG_PATH BPF_PATH "prog_netd_skfilter_ingress_xtbpf"
+#define XT_BPF_EGRESS_PROG_PATH BPF_PATH "prog_netd_skfilter_egress_xtbpf"
+#define XT_BPF_ALLOWLIST_PROG_PATH BPF_PATH "prog_netd_skfilter_allowlist_xtbpf"
+#define XT_BPF_DENYLIST_PROG_PATH BPF_PATH "prog_netd_skfilter_denylist_xtbpf"
+#define CGROUP_SOCKET_PROG_PATH BPF_PATH "prog_netd_cgroupsock_inet_create"
 
-#define COOKIE_TAG_MAP_PATH BPF_PATH "/map_netd_cookie_tag_map"
-#define UID_COUNTERSET_MAP_PATH BPF_PATH "/map_netd_uid_counterset_map"
-#define APP_UID_STATS_MAP_PATH BPF_PATH "/map_netd_app_uid_stats_map"
-#define STATS_MAP_A_PATH BPF_PATH "/map_netd_stats_map_A"
-#define STATS_MAP_B_PATH BPF_PATH "/map_netd_stats_map_B"
-#define IFACE_INDEX_NAME_MAP_PATH BPF_PATH "/map_netd_iface_index_name_map"
-#define IFACE_STATS_MAP_PATH BPF_PATH "/map_netd_iface_stats_map"
-#define CONFIGURATION_MAP_PATH BPF_PATH "/map_netd_configuration_map"
-#define UID_OWNER_MAP_PATH BPF_PATH "/map_netd_uid_owner_map"
-#define UID_PERMISSION_MAP_PATH BPF_PATH "/map_netd_uid_permission_map"
+#define COOKIE_TAG_MAP_PATH BPF_PATH "map_netd_cookie_tag_map"
+#define UID_COUNTERSET_MAP_PATH BPF_PATH "map_netd_uid_counterset_map"
+#define APP_UID_STATS_MAP_PATH BPF_PATH "map_netd_app_uid_stats_map"
+#define STATS_MAP_A_PATH BPF_PATH "map_netd_stats_map_A"
+#define STATS_MAP_B_PATH BPF_PATH "map_netd_stats_map_B"
+#define IFACE_INDEX_NAME_MAP_PATH BPF_PATH "map_netd_iface_index_name_map"
+#define IFACE_STATS_MAP_PATH BPF_PATH "map_netd_iface_stats_map"
+#define CONFIGURATION_MAP_PATH BPF_PATH "map_netd_configuration_map"
+#define UID_OWNER_MAP_PATH BPF_PATH "map_netd_uid_owner_map"
+#define UID_PERMISSION_MAP_PATH BPF_PATH "map_netd_uid_permission_map"
 
 enum UidOwnerMatchType {
     NO_MATCH = 0,
@@ -161,10 +161,10 @@ STRUCT_SIZE(UidOwnerValue, 2 * 4);  // 8
 #define CLAT_INGRESS6_PROG_RAWIP_NAME "prog_clatd_schedcls_ingress6_clat_rawip"
 #define CLAT_INGRESS6_PROG_ETHER_NAME "prog_clatd_schedcls_ingress6_clat_ether"
 
-#define CLAT_INGRESS6_PROG_RAWIP_PATH BPF_PATH "/" CLAT_INGRESS6_PROG_RAWIP_NAME
-#define CLAT_INGRESS6_PROG_ETHER_PATH BPF_PATH "/" CLAT_INGRESS6_PROG_ETHER_NAME
+#define CLAT_INGRESS6_PROG_RAWIP_PATH BPF_PATH CLAT_INGRESS6_PROG_RAWIP_NAME
+#define CLAT_INGRESS6_PROG_ETHER_PATH BPF_PATH CLAT_INGRESS6_PROG_ETHER_NAME
 
-#define CLAT_INGRESS6_MAP_PATH BPF_PATH "/map_clatd_clat_ingress6_map"
+#define CLAT_INGRESS6_MAP_PATH BPF_PATH "map_clatd_clat_ingress6_map"
 
 typedef struct {
     uint32_t iif;            // The input interface index
@@ -182,10 +182,10 @@ STRUCT_SIZE(ClatIngress6Value, 4 + 4);  // 8
 #define CLAT_EGRESS4_PROG_RAWIP_NAME "prog_clatd_schedcls_egress4_clat_rawip"
 #define CLAT_EGRESS4_PROG_ETHER_NAME "prog_clatd_schedcls_egress4_clat_ether"
 
-#define CLAT_EGRESS4_PROG_RAWIP_PATH BPF_PATH "/" CLAT_EGRESS4_PROG_RAWIP_NAME
-#define CLAT_EGRESS4_PROG_ETHER_PATH BPF_PATH "/" CLAT_EGRESS4_PROG_ETHER_NAME
+#define CLAT_EGRESS4_PROG_RAWIP_PATH BPF_PATH CLAT_EGRESS4_PROG_RAWIP_NAME
+#define CLAT_EGRESS4_PROG_ETHER_PATH BPF_PATH CLAT_EGRESS4_PROG_ETHER_NAME
 
-#define CLAT_EGRESS4_MAP_PATH BPF_PATH "/map_clatd_clat_egress4_map"
+#define CLAT_EGRESS4_MAP_PATH BPF_PATH "map_clatd_clat_egress4_map"
 
 typedef struct {
     uint32_t iif;           // The input interface index
@@ -202,15 +202,15 @@ typedef struct {
 } ClatEgress4Value;
 STRUCT_SIZE(ClatEgress4Value, 4 + 2 * 16 + 1 + 3);  // 40
 
+#define BPF_PATH_TETHER BPF_PATH "tethering/"
+
 #define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_downstream6_rawip"
 #define TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_downstream6_ether"
 
-#define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH \
-    BPF_PATH "/tethering/" TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME
-#define TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH \
-    BPF_PATH "/tethering/" TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME
+#define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH BPF_PATH_TETHER TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME
+#define TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH BPF_PATH_TETHER TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME
 
-#define TETHER_DOWNSTREAM6_MAP_PATH BPF_PATH "/tethering/map_offload_tether_downstream6_map"
+#define TETHER_DOWNSTREAM6_MAP_PATH BPF_PATH_TETHER "map_offload_tether_downstream6_map"
 
 typedef struct {
     uint32_t iif;            // The input interface index
@@ -231,12 +231,10 @@ STRUCT_SIZE(TetherDownstream6Value, 4 + 14 + 2);  // 20
 #define TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_upstream6_rawip"
 #define TETHER_UPSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_upstream6_ether"
 
-#define TETHER_UPSTREAM6_TC_PROG_RAWIP_PATH \
-    BPF_PATH "/tethering/" TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME
-#define TETHER_UPSTREAM6_TC_PROG_ETHER_PATH \
-    BPF_PATH "/tethering/" TETHER_UPSTREAM6_TC_PROG_ETHER_NAME
+#define TETHER_UPSTREAM6_TC_PROG_RAWIP_PATH BPF_PATH_TETHER TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME
+#define TETHER_UPSTREAM6_TC_PROG_ETHER_PATH BPF_PATH_TETHER TETHER_UPSTREAM6_TC_PROG_ETHER_NAME
 
-#define TETHER_UPSTREAM6_MAP_PATH BPF_PATH "/tethering/map_offload_tether_upstream6_map"
+#define TETHER_UPSTREAM6_MAP_PATH BPF_PATH_TETHER "map_offload_tether_upstream6_map"
 
 typedef struct {
     uint32_t iif;  // The input interface index
@@ -250,7 +248,7 @@ typedef struct {
 } TetherUpstream6Value;
 STRUCT_SIZE(TetherUpstream6Value, 4 + 14 + 2);  // 20
 
-#define TETHER_STATS_MAP_PATH BPF_PATH "/tethering/map_offload_tether_stats_map"
+#define TETHER_STATS_MAP_PATH BPF_PATH_TETHER "map_offload_tether_stats_map"
 
 typedef struct {
     uint64_t rxPackets;
@@ -262,6 +260,6 @@ typedef struct {
 } TetherStatsValue;
 STRUCT_SIZE(TetherStatsValue, 6 * 8);  // 48
 
-#define TETHER_LIMIT_MAP_PATH BPF_PATH "/tethering/map_offload_tether_limit_map"
+#define TETHER_LIMIT_MAP_PATH BPF_PATH_TETHER "map_offload_tether_limit_map"
 
 #undef STRUCT_SIZE
