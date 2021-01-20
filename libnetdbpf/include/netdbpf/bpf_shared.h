@@ -188,18 +188,20 @@ typedef struct {
     bool oifIsEthernet;      // Whether the output interface requires ethernet header
 } ClatEgress4Value;
 
-#define TETHER_INGRESS_PROG_RAWIP_NAME "prog_offload_schedcls_ingress_tether_rawip"
-#define TETHER_INGRESS_PROG_ETHER_NAME "prog_offload_schedcls_ingress_tether_ether"
+#define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_downstream6_rawip"
+#define TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_downstream6_ether"
 
-#define TETHER_INGRESS_PROG_RAWIP_PATH BPF_PATH "/tethering/" TETHER_INGRESS_PROG_RAWIP_NAME
-#define TETHER_INGRESS_PROG_ETHER_PATH BPF_PATH "/tethering/" TETHER_INGRESS_PROG_ETHER_NAME
+#define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH \
+    BPF_PATH "/tethering/" TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME
+#define TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH \
+    BPF_PATH "/tethering/" TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME
 
-#define TETHER_INGRESS_MAP_PATH BPF_PATH "/tethering/map_offload_tether_ingress_map"
+#define TETHER_DOWNSTREAM6_MAP_PATH BPF_PATH "/tethering/map_offload_tether_downstream6_map"
 
 typedef struct {
     uint32_t iif;            // The input interface index
     struct in6_addr neigh6;  // The destination IPv6 address
-} TetherIngressKey;
+} TetherDownstream6Key;
 
 typedef struct {
     uint32_t oif;  // The output interface to redirect to
@@ -208,7 +210,7 @@ typedef struct {
     // Ethernet) have 6-byte MAC addresses.
     struct ethhdr macHeader;  // includes dst/src mac and ethertype
     uint16_t pmtu;            // The maximum L3 output path/route mtu
-} TetherIngressValue;
+} TetherDownstream6Value;
 
 #define TETHER_STATS_MAP_PATH BPF_PATH "/tethering/map_offload_tether_stats_map"
 
