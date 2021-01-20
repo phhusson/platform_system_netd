@@ -203,8 +203,6 @@ bool TetherController::disableForwarding(const char* requester) {
 }
 
 void TetherController::maybeInitMaps() {
-    if (!bpf::isBpfSupported()) return;
-
     // Open BPF maps, ignoring errors because the device might not support BPF offload.
     int fd = getTetherIngressMapFd();
     if (fd >= 0) {
@@ -1094,8 +1092,6 @@ Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
 }
 
 void TetherController::maybeStartBpf(const char* extIface) {
-    if (!bpf::isBpfSupported()) return;
-
     // TODO: perhaps ignore IPv4-only interface because IPv4 traffic downstream is not supported.
     int ifIndex = if_nametoindex(extIface);
     if (!ifIndex) {
@@ -1126,8 +1122,6 @@ void TetherController::maybeStartBpf(const char* extIface) {
 }
 
 void TetherController::maybeStopBpf(const char* extIface) {
-    if (!bpf::isBpfSupported()) return;
-
     // TODO: perhaps ignore IPv4-only interface because IPv4 traffic downstream is not supported.
     int ifIndex = if_nametoindex(extIface);
     if (!ifIndex) {

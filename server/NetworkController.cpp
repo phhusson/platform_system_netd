@@ -147,14 +147,12 @@ NetworkController::NetworkController() :
     // TODO: perhaps only remove the clsact on the interface which is added by
     // RouteController::addInterfaceToPhysicalNetwork. Currently, the netd only
     // attach the clsact to the interface for the physical network.
-    if (bpf::isBpfSupported()) {
-        const auto& ifaces = InterfaceController::getIfaceNames();
-        if (isOk(ifaces)) {
-            for (const std::string& iface : ifaces.value()) {
-                if (int ifIndex = if_nametoindex(iface.c_str())) {
-                    // Ignore the error because the interface might not have a clsact.
-                    tcQdiscDelDevClsact(ifIndex);
-                }
+    const auto& ifaces = InterfaceController::getIfaceNames();
+    if (isOk(ifaces)) {
+        for (const std::string& iface : ifaces.value()) {
+            if (int ifIndex = if_nametoindex(iface.c_str())) {
+                // Ignore the error because the interface might not have a clsact.
+                tcQdiscDelDevClsact(ifIndex);
             }
         }
     }
