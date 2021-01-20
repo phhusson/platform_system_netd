@@ -204,6 +204,25 @@ STRUCT_SIZE(ClatEgress4Value, 4 + 2 * 16 + 1 + 3);  // 40
 
 #define BPF_PATH_TETHER BPF_PATH "tethering/"
 
+#define TETHER_STATS_MAP_PATH BPF_PATH_TETHER "map_offload_tether_stats_map"
+
+typedef uint32_t TetherStatsKey;  // upstream ifindex
+
+typedef struct {
+    uint64_t rxPackets;
+    uint64_t rxBytes;
+    uint64_t rxErrors;
+    uint64_t txPackets;
+    uint64_t txBytes;
+    uint64_t txErrors;
+} TetherStatsValue;
+STRUCT_SIZE(TetherStatsValue, 6 * 8);  // 48
+
+#define TETHER_LIMIT_MAP_PATH BPF_PATH_TETHER "map_offload_tether_limit_map"
+
+typedef uint32_t TetherLimitKey;    // upstream ifindex
+typedef uint64_t TetherLimitValue;  // in bytes
+
 #define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_downstream6_rawip"
 #define TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_downstream6_ether"
 
@@ -228,6 +247,18 @@ typedef struct {
 } TetherDownstream6Value;
 STRUCT_SIZE(TetherDownstream6Value, 4 + 14 + 2);  // 20
 
+#define TETHER_DOWNSTREAM64_MAP_PATH BPF_PATH_TETHER "map_offload_tether_downstream64_map"
+
+typedef struct {
+    uint32_t iif;  // The input interface index
+} TetherDownstream64Key;
+STRUCT_SIZE(TetherDownstream64Key, 4);
+
+typedef struct {
+    uint32_t oif;  // The output interface to redirect to
+} TetherDownstream64Value;
+STRUCT_SIZE(TetherDownstream64Value, 4);
+
 #define TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_upstream6_rawip"
 #define TETHER_UPSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_upstream6_ether"
 
@@ -248,18 +279,52 @@ typedef struct {
 } TetherUpstream6Value;
 STRUCT_SIZE(TetherUpstream6Value, 4 + 14 + 2);  // 20
 
-#define TETHER_STATS_MAP_PATH BPF_PATH_TETHER "map_offload_tether_stats_map"
+#define TETHER_DOWNSTREAM4_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_downstream4_rawip"
+#define TETHER_DOWNSTREAM4_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_downstream4_ether"
+
+#define TETHER_DOWNSTREAM4_TC_PROG_RAWIP_PATH BPF_PATH_TETHER TETHER_DOWNSTREAM4_TC_PROG_RAWIP_NAME
+#define TETHER_DOWNSTREAM4_TC_PROG_ETHER_PATH BPF_PATH_TETHER TETHER_DOWNSTREAM4_TC_PROG_ETHER_NAME
+
+#define TETHER_DOWNSTREAM4_MAP_PATH BPF_PATH_TETHER "map_offload_tether_downstream4_map"
 
 typedef struct {
-    uint64_t rxPackets;
-    uint64_t rxBytes;
-    uint64_t rxErrors;
-    uint64_t txPackets;
-    uint64_t txBytes;
-    uint64_t txErrors;
-} TetherStatsValue;
-STRUCT_SIZE(TetherStatsValue, 6 * 8);  // 48
+    uint32_t iif;  // The input interface index
+} TetherDownstream4Key;
+STRUCT_SIZE(TetherDownstream4Key, 4);
 
-#define TETHER_LIMIT_MAP_PATH BPF_PATH_TETHER "map_offload_tether_limit_map"
+typedef struct {
+    uint32_t oif;  // The output interface to redirect to
+} TetherDownstream4Value;
+STRUCT_SIZE(TetherDownstream4Value, 4);
+
+#define TETHER_UPSTREAM4_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_upstream4_rawip"
+#define TETHER_UPSTREAM4_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_upstream4_ether"
+
+#define TETHER_UPSTREAM4_TC_PROG_RAWIP_PATH BPF_PATH_TETHER TETHER_UPSTREAM4_TC_PROG_RAWIP_NAME
+#define TETHER_UPSTREAM4_TC_PROG_ETHER_PATH BPF_PATH_TETHER TETHER_UPSTREAM4_TC_PROG_ETHER_NAME
+
+#define TETHER_UPSTREAM4_MAP_PATH BPF_PATH_TETHER "map_offload_tether_upstream4_map"
+
+typedef struct {
+    uint32_t iif;  // The input interface index
+} TetherUpstream4Key;
+STRUCT_SIZE(TetherUpstream4Key, 4);
+
+typedef struct {
+    uint32_t oif;  // The output interface to redirect to
+} TetherUpstream4Value;
+STRUCT_SIZE(TetherUpstream4Value, 4);
+
+#define TETHER_DOWNSTREAM_XDP_PROG_RAWIP_NAME "prog_offload_xdp_tether_downstream_rawip"
+#define TETHER_DOWNSTREAM_XDP_PROG_ETHER_NAME "prog_offload_xdp_tether_downstream_ether"
+
+#define TETHER_DOWNSTREAM_XDP_PROG_RAWIP_PATH BPF_PATH_TETHER TETHER_DOWNSTREAM_XDP_PROG_RAWIP_NAME
+#define TETHER_DOWNSTREAM_XDP_PROG_ETHER_PATH BPF_PATH_TETHER TETHER_DOWNSTREAM_XDP_PROG_ETHER_NAME
+
+#define TETHER_UPSTREAM_XDP_PROG_RAWIP_NAME "prog_offload_xdp_tether_upstream_rawip"
+#define TETHER_UPSTREAM_XDP_PROG_ETHER_NAME "prog_offload_xdp_tether_upstream_ether"
+
+#define TETHER_UPSTREAM_XDP_PROG_RAWIP_PATH BPF_PATH_TETHER TETHER_UPSTREAM_XDP_PROG_RAWIP_NAME
+#define TETHER_UPSTREAM_XDP_PROG_ETHER_PATH BPF_PATH_TETHER TETHER_UPSTREAM_XDP_PROG_ETHER_NAME
 
 #undef STRUCT_SIZE
