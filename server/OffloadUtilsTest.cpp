@@ -147,6 +147,20 @@ TEST_F(OffloadUtilsTest, GetTetherDownstream6MapFd) {
     close(fd);
 }
 
+TEST_F(OffloadUtilsTest, GetTetherDownstream64MapFd) {
+    int fd = getTetherDownstream64MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstream4MapFd) {
+    int fd = getTetherDownstream4MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
 TEST_F(OffloadUtilsTest, GetTetherDownstream6RawIpTcProgFd) {
     // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
     SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
@@ -165,8 +179,33 @@ TEST_F(OffloadUtilsTest, GetTetherDownstream6EtherTcProgFd) {
     close(fd);
 }
 
+TEST_F(OffloadUtilsTest, GetTetherDownstream4RawIpTcProgFd) {
+    // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
+    SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
+
+    int fd = getTetherDownstream4TcProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstream4EtherTcProgFd) {
+    // RX Ether -> TX Ether does not require header adjustments
+    int fd = getTetherDownstream4TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
 TEST_F(OffloadUtilsTest, GetTetherUpstream6MapFd) {
     int fd = getTetherUpstream6MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream4MapFd) {
+    int fd = getTetherUpstream4MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
@@ -185,6 +224,60 @@ TEST_F(OffloadUtilsTest, GetTetherUpstream6RawIpTcProgFd) {
 TEST_F(OffloadUtilsTest, GetTetherUpstream6EtherTcProgFd) {
     // RX Ether -> TX Ether does not require header adjustments
     int fd = getTetherUpstream6TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream4RawIpTcProgFd) {
+    // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
+    SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
+
+    int fd = getTetherUpstream4TcProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream4EtherTcProgFd) {
+    // RX Ether -> TX Ether does not require header adjustments
+    int fd = getTetherUpstream4TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstreamRawIpXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherDownstreamXdpProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstreamEtherXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherDownstreamXdpProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstreamRawIpXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherUpstreamXdpProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstreamEtherXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherUpstreamXdpProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
