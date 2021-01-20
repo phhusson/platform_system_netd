@@ -137,6 +137,7 @@ interface INetd {
   const int PENALTY_POLICY_LOG = 2;
   const int PENALTY_POLICY_REJECT = 3;
   const int LOCAL_NET_ID = 99;
+  const int DUMMY_NET_ID = 51;
   const String NEXTHOP_NONE = "";
   const String NEXTHOP_UNREACHABLE = "unreachable";
   const String NEXTHOP_THROW = "throw";
