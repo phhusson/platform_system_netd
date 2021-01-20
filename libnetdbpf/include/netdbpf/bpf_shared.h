@@ -228,6 +228,28 @@ typedef struct {
 } TetherDownstream6Value;
 STRUCT_SIZE(TetherDownstream6Value, 4 + 14 + 2);  // 20
 
+#define TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_upstream6_rawip"
+#define TETHER_UPSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_upstream6_ether"
+
+#define TETHER_UPSTREAM6_TC_PROG_RAWIP_PATH \
+    BPF_PATH "/tethering/" TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME
+#define TETHER_UPSTREAM6_TC_PROG_ETHER_PATH \
+    BPF_PATH "/tethering/" TETHER_UPSTREAM6_TC_PROG_ETHER_NAME
+
+#define TETHER_UPSTREAM6_MAP_PATH BPF_PATH "/tethering/map_offload_tether_upstream6_map"
+
+typedef struct {
+    uint32_t iif;  // The input interface index
+} TetherUpstream6Key;
+STRUCT_SIZE(TetherUpstream6Key, 4);
+
+typedef struct {
+    uint32_t oif;             // The output interface to redirect to
+    struct ethhdr macHeader;  // includes dst/src mac and ethertype
+    uint16_t pmtu;            // The maximum L3 output path/route mtu
+} TetherUpstream6Value;
+STRUCT_SIZE(TetherUpstream6Value, 4 + 14 + 2);  // 20
+
 #define TETHER_STATS_MAP_PATH BPF_PATH "/tethering/map_offload_tether_stats_map"
 
 typedef struct {
