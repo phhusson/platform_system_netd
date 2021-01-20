@@ -216,7 +216,8 @@ TEST_F(OffloadUtilsTest, AttachReplaceDetachClsactLo) {
     EXPECT_EQ(-EINVAL, tcQdiscDelDevClsact(LOOPBACK_IFINDEX));
 }
 
-static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool ethernet) {
+static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool ethernet,
+                                               const bool downstream) {
     const bool extended = android::bpf::isAtLeastKernelVersion(4, 14, 0);
     // Older kernels return EINVAL instead of ENOENT due to lacking proper error propagation...
     const int errNOENT = android::bpf::isAtLeastKernelVersion(4, 19, 0) ? ENOENT : EINVAL;
@@ -226,7 +227,8 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
 
     int tetherBpfFd = -1;
     if (extended && ingress) {
-        tetherBpfFd = getTetherDownstream6TcProgFd(ethernet);
+        tetherBpfFd = downstream ? getTetherDownstream6TcProgFd(ethernet)
+                                 : getTetherUpstream6TcProgFd(ethernet);
         ASSERT_GE(tetherBpfFd, 3);
     }
 
@@ -242,7 +244,8 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
     if (ingress) {
         EXPECT_EQ(0, tcFilterAddDevIngressClatIpv6(LOOPBACK_IFINDEX, clatBpfFd, ethernet));
         if (extended) {
-            EXPECT_EQ(0, tcFilterAddDevIngressTether(LOOPBACK_IFINDEX, tetherBpfFd, ethernet));
+            EXPECT_EQ(0, tcFilterAddDevIngressTether(LOOPBACK_IFINDEX, tetherBpfFd, ethernet,
+                                                     downstream));
             EXPECT_EQ(0, tcFilterDelDevIngressTether(LOOPBACK_IFINDEX));
         }
         EXPECT_EQ(0, tcFilterDelDevIngressClatIpv6(LOOPBACK_IFINDEX));
@@ -261,19 +264,21 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterRawIpClsactEgressLo) {
-    checkAttachDetachBpfFilterClsactLo(EGRESS, RAWIP);
+    checkAttachDetachBpfFilterClsactLo(EGRESS, RAWIP, UPSTREAM);
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterEthernetClsactEgressLo) {
-    checkAttachDetachBpfFilterClsactLo(EGRESS, ETHER);
+    checkAttachDetachBpfFilterClsactLo(EGRESS, ETHER, UPSTREAM);
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterRawIpClsactIngressLo) {
-    checkAttachDetachBpfFilterClsactLo(INGRESS, RAWIP);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, RAWIP, DOWNSTREAM);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, RAWIP, UPSTREAM);
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterEthernetClsactIngressLo) {
-    checkAttachDetachBpfFilterClsactLo(INGRESS, ETHER);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, ETHER, DOWNSTREAM);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, ETHER, UPSTREAM);
 }
 
 }  // namespace net
