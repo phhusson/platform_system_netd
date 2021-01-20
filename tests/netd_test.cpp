@@ -202,20 +202,20 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
     rv = tcQdiscAddDevClsact(tunif);
     ASSERT_EQ(rv, 0);
 
-    int bpfFd = getTetherIngressProgFd(/* ethernet */ false);
+    int bpfFd = getTetherDownstream6TcProgFd(/* ethernet */ false);
     ASSERT_EQ(errno, 0);
     ASSERT_GE(bpfFd, 3);
 
     rv = tcFilterAddDevIngressTether(tunif, bpfFd, /* ethernet*/ false);
     ASSERT_EQ(rv, 0);
 
-    bpf::BpfMap<TetherIngressKey, TetherIngressValue> bpfIngressMap;
+    bpf::BpfMap<TetherDownstream6Key, TetherDownstream6Value> bpfDownstream6Map;
     bpf::BpfMap<uint32_t, TetherStatsValue> bpfStatsMap;
     bpf::BpfMap<uint32_t, uint64_t> bpfLimitMap;
 
-    rv = getTetherIngressMapFd();
+    rv = getTetherDownstream6MapFd();
     ASSERT_GE(rv, 3);
-    bpfIngressMap.reset(rv);
+    bpfDownstream6Map.reset(rv);
 
     rv = getTetherStatsMapFd();
     ASSERT_GE(rv, 3);
@@ -225,7 +225,7 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
     ASSERT_GE(rv, 3);
     bpfLimitMap.reset(rv);
 
-    TetherIngressKey key = {
+    TetherDownstream6Key key = {
             .iif = static_cast<uint32_t>(tunif),
             //.neigh6 = ,
     };
@@ -234,7 +234,7 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
             .h_proto = htons(ETH_P_IPV6),
     };
 
-    TetherIngressValue value = {
+    TetherDownstream6Value value = {
             .oif = static_cast<uint32_t>(tapif),
             .macHeader = hdr,
             .pmtu = mtu,
@@ -242,7 +242,7 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
 
 #define ASSERT_OK(status) ASSERT_TRUE((status).ok())
 
-    ASSERT_OK(bpfIngressMap.writeValue(key, value, BPF_ANY));
+    ASSERT_OK(bpfDownstream6Map.writeValue(key, value, BPF_ANY));
 
     uint32_t k = tunif;
     TetherStatsValue stats = {};
@@ -290,7 +290,7 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
         if (rv < 0) break;
     }
 
-    ASSERT_OK(bpfIngressMap.deleteValue(key));
+    ASSERT_OK(bpfDownstream6Map.deleteValue(key));
     ASSERT_OK(bpfStatsMap.deleteValue(k));
     ASSERT_OK(bpfLimitMap.deleteValue(k));
 }
