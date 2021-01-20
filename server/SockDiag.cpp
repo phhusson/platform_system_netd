@@ -31,6 +31,7 @@
 
 #include <cinttypes>
 
+#include <android-base/properties.h>
 #include <android-base/strings.h>
 #include <log/log.h>
 #include <netdutils/InternetAddresses.h>
@@ -51,6 +52,15 @@ using netdutils::Stopwatch;
 
 namespace net {
 namespace {
+
+int getAdbPort() {
+    return android::base::GetIntProperty("service.adb.tcp.port", 0);
+}
+
+bool isAdbSocket(const inet_diag_msg *msg, int adbPort) {
+    return adbPort > 0 && msg->id.idiag_sport == htons(adbPort) &&
+        (msg->idiag_uid == AID_ROOT || msg->idiag_uid == AID_SHELL);
+}
 
 int checkError(int fd) {
     struct {
@@ -414,7 +424,8 @@ int SockDiag::destroySockets(const UidRanges& uidRanges, const std::set<uid_t>& 
         return msg != nullptr &&
                uidRanges.hasUid(msg->idiag_uid) &&
                skipUids.find(msg->idiag_uid) == skipUids.end() &&
-               !(excludeLoopback && isLoopbackSocket(msg));
+               !(excludeLoopback && isLoopbackSocket(msg)) &&
+               !isAdbSocket(msg, getAdbPort());
     };
 
     iovec iov[] = {
