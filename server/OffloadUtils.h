@@ -70,14 +70,15 @@ inline int getClatIngress6ProgFd(bool with_ethernet_header) {
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getTetherIngressMapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_INGRESS_MAP_PATH);
+inline int getTetherDownstream6MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(TETHER_DOWNSTREAM6_MAP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getTetherIngressProgFd(bool with_ethernet_header) {
-    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_INGRESS_PROG_ETHER_PATH
-                                                             : TETHER_INGRESS_PROG_RAWIP_PATH);
+inline int getTetherDownstream6TcProgFd(bool with_ethernet_header) {
+    const int fd =
+            bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH
+                                                      : TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
