@@ -169,7 +169,7 @@ TetherController::TetherController() {
     } else {
         setIpFwdEnabled();
     }
-    maybeInitMaps();
+    initMaps();
 }
 
 bool TetherController::setIpFwdEnabled() {
@@ -202,7 +202,7 @@ bool TetherController::disableForwarding(const char* requester) {
     return setIpFwdEnabled();
 }
 
-void TetherController::maybeInitMaps() {
+void TetherController::initMaps() {
     // Open BPF maps, ignoring errors because the device might not support BPF offload.
     int fd = getTetherDownstream6MapFd();
     if (fd >= 0) {
@@ -631,7 +631,7 @@ int TetherController::enableNat(const char* intIface, const char* extIface) {
         return -ENODEV;
     }
 
-    if (firstDownstreamForThisUpstream) maybeStartBpf(extIface);
+    if (firstDownstreamForThisUpstream) startDownstreamBpf(extIface);
     return 0;
 }
 
@@ -815,7 +815,7 @@ int TetherController::disableNat(const char* intIface, const char* extIface) {
     }
 
     setForwardRules(false, intIface, extIface);
-    if (!isAnyForwardingEnabledOnUpstream(extIface)) maybeStopBpf(extIface);
+    if (!isAnyForwardingEnabledOnUpstream(extIface)) stopBpf(extIface);
     if (!isAnyForwardingPairEnabled()) setDefaults();
     return 0;
 }
@@ -1091,8 +1091,7 @@ Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
     return {};
 }
 
-void TetherController::maybeStartBpf(const char* extIface) {
-    // TODO: perhaps ignore IPv4-only interface because IPv4 traffic downstream is not supported.
+void TetherController::startDownstreamBpf(const char* extIface) {
     int ifIndex = if_nametoindex(extIface);
     if (!ifIndex) {
         ALOGE("Fail to get index for interface %s", extIface);
@@ -1111,27 +1110,45 @@ void TetherController::maybeStartBpf(const char* extIface) {
         ALOGE("getTetherDownstream6TcProgFd(%d) failure: %s", isEthernet.value(), strerror(-rv));
         return;
     }
-    unique_fd tetherProgFd(rv);
+    unique_fd tether6ProgFd(rv);
 
-    rv = tcFilterAddDevIngress6Tether(ifIndex, tetherProgFd, isEthernet.value(), DOWNSTREAM);
+    rv = getTetherDownstream4TcProgFd(isEthernet.value());
+    if (rv < 0) {
+        ALOGE("getTetherDownstream4TcProgFd(%d) failure: %s", isEthernet.value(), strerror(-rv));
+        return;
+    }
+    unique_fd tether4ProgFd(rv);
+
+    rv = tcFilterAddDevIngress6Tether(ifIndex, tether6ProgFd, isEthernet.value(), DOWNSTREAM);
     if (rv) {
         ALOGE("tcFilterAddDevIngress6Tether(%d[%s], %d, DOWNSTREAM) failure: %s", ifIndex, extIface,
               isEthernet.value(), strerror(-rv));
         return;
     }
+
+    rv = tcFilterAddDevIngress4Tether(ifIndex, tether4ProgFd, isEthernet.value(), DOWNSTREAM);
+    if (rv) {
+        ALOGE("tcFilterAddDevIngress4Tether(%d[%s], %d, DOWNSTREAM) failure: %s", ifIndex, extIface,
+              isEthernet.value(), strerror(-rv));
+        return;
+    }
 }
 
-void TetherController::maybeStopBpf(const char* extIface) {
-    // TODO: perhaps ignore IPv4-only interface because IPv4 traffic downstream is not supported.
-    int ifIndex = if_nametoindex(extIface);
+void TetherController::stopBpf(const char* iface) {
+    int ifIndex = if_nametoindex(iface);
     if (!ifIndex) {
-        ALOGE("Fail to get index for interface %s", extIface);
+        ALOGE("Fail to get index for interface %s", iface);
         return;
     }
 
-    int rv = tcFilterDelDevIngress6Tether(ifIndex);
+    int rv = tcFilterDelDevIngress4Tether(ifIndex);
     if (rv < 0) {
-        ALOGE("tcFilterDelDevIngress6Tether(%d[%s]) failure: %s", ifIndex, extIface, strerror(-rv));
+        ALOGE("tcFilterDelDevIngress4Tether(%d[%s]) failure: %s", ifIndex, iface, strerror(-rv));
+    }
+
+    rv = tcFilterDelDevIngress6Tether(ifIndex);
+    if (rv < 0) {
+        ALOGE("tcFilterDelDevIngress6Tether(%d[%s]) failure: %s", ifIndex, iface, strerror(-rv));
     }
 }
 
