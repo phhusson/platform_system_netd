@@ -318,11 +318,15 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
     int clatBpfFd = ingress ? getClatIngress6ProgFd(ethernet) : getClatEgress4ProgFd(ethernet);
     ASSERT_GE(clatBpfFd, 3);
 
-    int tetherBpfFd = -1;
+    int tether6BpfFd = -1;
+    int tether4BpfFd = -1;
     if (extended && ingress) {
-        tetherBpfFd = downstream ? getTetherDownstream6TcProgFd(ethernet)
-                                 : getTetherUpstream6TcProgFd(ethernet);
-        ASSERT_GE(tetherBpfFd, 3);
+        tether6BpfFd = downstream ? getTetherDownstream6TcProgFd(ethernet)
+                                  : getTetherUpstream6TcProgFd(ethernet);
+        ASSERT_GE(tether6BpfFd, 3);
+        tether4BpfFd = downstream ? getTetherDownstream4TcProgFd(ethernet)
+                                  : getTetherUpstream4TcProgFd(ethernet);
+        ASSERT_GE(tether4BpfFd, 3);
     }
 
     // This attaches and detaches a clsact plus ebpf program to loopback
@@ -337,9 +341,12 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
     if (ingress) {
         EXPECT_EQ(0, tcFilterAddDevIngressClatIpv6(LOOPBACK_IFINDEX, clatBpfFd, ethernet));
         if (extended) {
-            EXPECT_EQ(0, tcFilterAddDevIngressTether(LOOPBACK_IFINDEX, tetherBpfFd, ethernet,
-                                                     downstream));
-            EXPECT_EQ(0, tcFilterDelDevIngressTether(LOOPBACK_IFINDEX));
+            EXPECT_EQ(0, tcFilterAddDevIngress6Tether(LOOPBACK_IFINDEX, tether6BpfFd, ethernet,
+                                                      downstream));
+            EXPECT_EQ(0, tcFilterAddDevIngress4Tether(LOOPBACK_IFINDEX, tether4BpfFd, ethernet,
+                                                      downstream));
+            EXPECT_EQ(0, tcFilterDelDevIngress6Tether(LOOPBACK_IFINDEX));
+            EXPECT_EQ(0, tcFilterDelDevIngress4Tether(LOOPBACK_IFINDEX));
         }
         EXPECT_EQ(0, tcFilterDelDevIngressClatIpv6(LOOPBACK_IFINDEX));
     } else {
@@ -352,7 +359,8 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
     EXPECT_EQ(-EINVAL, tcFilterDelDevIngressClatIpv6(LOOPBACK_IFINDEX));
     EXPECT_EQ(-EINVAL, tcFilterDelDevEgressClatIpv4(LOOPBACK_IFINDEX));
 
-    if (tetherBpfFd != -1) close(tetherBpfFd);
+    if (tether4BpfFd != -1) close(tether4BpfFd);
+    if (tether6BpfFd != -1) close(tether6BpfFd);
     close(clatBpfFd);
 }
 
