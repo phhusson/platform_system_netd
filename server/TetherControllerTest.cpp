@@ -68,8 +68,8 @@ public:
 
 protected:
     TetherController mTetherCtrl;
-    BpfMap<uint32_t, TetherStatsValue> mFakeTetherStatsMap{BPF_MAP_TYPE_HASH, TEST_MAP_SIZE};
-    BpfMap<uint32_t, uint64_t> mFakeTetherLimitMap{BPF_MAP_TYPE_HASH, TEST_MAP_SIZE};
+    BpfMap<TetherStatsKey, TetherStatsValue> mFakeTetherStatsMap{BPF_MAP_TYPE_HASH, TEST_MAP_SIZE};
+    BpfMap<TetherLimitKey, TetherLimitValue> mFakeTetherLimitMap{BPF_MAP_TYPE_HASH, TEST_MAP_SIZE};
 
     void SetUp() {
         ASSERT_TRUE(mFakeTetherStatsMap.isValid());
