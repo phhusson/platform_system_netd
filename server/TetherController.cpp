@@ -1113,9 +1113,9 @@ void TetherController::maybeStartBpf(const char* extIface) {
     }
     unique_fd tetherProgFd(rv);
 
-    rv = tcFilterAddDevIngressTether(ifIndex, tetherProgFd, isEthernet.value(), DOWNSTREAM);
+    rv = tcFilterAddDevIngress6Tether(ifIndex, tetherProgFd, isEthernet.value(), DOWNSTREAM);
     if (rv) {
-        ALOGE("tcFilterAddDevIngressTether(%d[%s], %d, DOWNSTREAM) failure: %s", ifIndex, extIface,
+        ALOGE("tcFilterAddDevIngress6Tether(%d[%s], %d, DOWNSTREAM) failure: %s", ifIndex, extIface,
               isEthernet.value(), strerror(-rv));
         return;
     }
@@ -1129,9 +1129,9 @@ void TetherController::maybeStopBpf(const char* extIface) {
         return;
     }
 
-    int rv = tcFilterDelDevIngressTether(ifIndex);
+    int rv = tcFilterDelDevIngress6Tether(ifIndex);
     if (rv < 0) {
-        ALOGE("tcFilterDelDevIngressTether(%d[%s]) failure: %s", ifIndex, extIface, strerror(-rv));
+        ALOGE("tcFilterDelDevIngress6Tether(%d[%s]) failure: %s", ifIndex, extIface, strerror(-rv));
     }
 }
 
