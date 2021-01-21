@@ -98,70 +98,70 @@ TEST_F(OffloadUtilsTest, IsEthernetOfCellular) {
     ASSERT_FALSE(res.value());
 }
 
-TEST_F(OffloadUtilsTest, GetClatEgressMapFd) {
-    int fd = getClatEgressMapFd();
+TEST_F(OffloadUtilsTest, GetClatEgress4MapFd) {
+    int fd = getClatEgress4MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatEgressRawIpProgFd) {
-    int fd = getClatEgressProgFd(RAWIP);
+TEST_F(OffloadUtilsTest, GetClatEgress4RawIpProgFd) {
+    int fd = getClatEgress4ProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatEgressEtherProgFd) {
-    int fd = getClatEgressProgFd(ETHER);
+TEST_F(OffloadUtilsTest, GetClatEgress4EtherProgFd) {
+    int fd = getClatEgress4ProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatIngressMapFd) {
-    int fd = getClatIngressMapFd();
+TEST_F(OffloadUtilsTest, GetClatIngress6MapFd) {
+    int fd = getClatIngress6MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatIngressRawIpProgFd) {
-    int fd = getClatIngressProgFd(RAWIP);
+TEST_F(OffloadUtilsTest, GetClatIngress6RawIpProgFd) {
+    int fd = getClatIngress6ProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetClatIngressEtherProgFd) {
-    int fd = getClatIngressProgFd(ETHER);
+TEST_F(OffloadUtilsTest, GetClatIngress6EtherProgFd) {
+    int fd = getClatIngress6ProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetTetherIngressMapFd) {
-    int fd = getTetherIngressMapFd();
+TEST_F(OffloadUtilsTest, GetTetherDownstream6MapFd) {
+    int fd = getTetherDownstream6MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetTetherIngressRawIpProgFd) {
+TEST_F(OffloadUtilsTest, GetTetherDownstream6RawIpTcProgFd) {
     // Currently only implementing downstream direction offload.
     // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
     SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
 
-    int fd = getTetherIngressProgFd(RAWIP);
+    int fd = getTetherDownstream6TcProgFd(RAWIP);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
 }
 
-TEST_F(OffloadUtilsTest, GetTetherIngressEtherProgFd) {
+TEST_F(OffloadUtilsTest, GetTetherDownstream6EtherTcProgFd) {
     // Currently only implementing downstream direction offload.
     // RX Ether -> TX Ether does not require header adjustments
-    int fd = getTetherIngressProgFd(ETHER);
+    int fd = getTetherDownstream6TcProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
@@ -194,19 +194,16 @@ TEST_F(OffloadUtilsTest, AttachReplaceDetachClsactLo) {
 }
 
 static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool ethernet) {
-    const bool extended =
-            (android::bpf::getBpfSupportLevel() >= android::bpf::BpfLevel::EXTENDED_4_14);
+    const bool extended = android::bpf::isAtLeastKernelVersion(4, 14, 0);
     // Older kernels return EINVAL instead of ENOENT due to lacking proper error propagation...
-    const int errNOENT =
-            (android::bpf::getBpfSupportLevel() >= android::bpf::BpfLevel::EXTENDED_4_19) ? ENOENT
-                                                                                          : EINVAL;
+    const int errNOENT = android::bpf::isAtLeastKernelVersion(4, 19, 0) ? ENOENT : EINVAL;
 
-    int clatBpfFd = ingress ? getClatIngressProgFd(ethernet) : getClatEgressProgFd(ethernet);
+    int clatBpfFd = ingress ? getClatIngress6ProgFd(ethernet) : getClatEgress4ProgFd(ethernet);
     ASSERT_GE(clatBpfFd, 3);
 
     int tetherBpfFd = -1;
     if (extended && ingress) {
-        tetherBpfFd = getTetherIngressProgFd(ethernet);
+        tetherBpfFd = getTetherDownstream6TcProgFd(ethernet);
         ASSERT_GE(tetherBpfFd, 3);
     }
 

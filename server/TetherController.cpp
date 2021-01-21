@@ -203,13 +203,11 @@ bool TetherController::disableForwarding(const char* requester) {
 }
 
 void TetherController::maybeInitMaps() {
-    if (!bpf::isBpfSupported()) return;
-
     // Open BPF maps, ignoring errors because the device might not support BPF offload.
-    int fd = getTetherIngressMapFd();
+    int fd = getTetherDownstream6MapFd();
     if (fd >= 0) {
-        mBpfIngressMap.reset(fd);
-        mBpfIngressMap.clear();
+        mBpfDownstream6Map.reset(fd);
+        mBpfDownstream6Map.clear();
     }
     fd = getTetherStatsMapFd();
     if (fd >= 0) {
@@ -862,30 +860,30 @@ Result<void> TetherController::addOffloadRule(const TetherOffloadRuleParcel& rul
     memcpy(&hdr.h_source, rule.srcL2Address.data(), sizeof(hdr.h_source));
 
     // Only downstream supported for now.
-    TetherIngressKey key = {
+    TetherDownstream6Key key = {
             .iif = static_cast<uint32_t>(rule.inputInterfaceIndex),
             .neigh6 = *(const in6_addr*)rule.destination.data(),
     };
 
-    TetherIngressValue value = {
+    TetherDownstream6Value value = {
             .oif = static_cast<uint32_t>(rule.outputInterfaceIndex),
             .macHeader = hdr,
             .pmtu = static_cast<uint16_t>(rule.pmtu),
     };
 
-    return mBpfIngressMap.writeValue(key, value, BPF_ANY);
+    return mBpfDownstream6Map.writeValue(key, value, BPF_ANY);
 }
 
 Result<void> TetherController::removeOffloadRule(const TetherOffloadRuleParcel& rule) {
     Result<void> res = validateOffloadRule(rule);
     if (!res.ok()) return res;
 
-    TetherIngressKey key = {
+    TetherDownstream6Key key = {
             .iif = static_cast<uint32_t>(rule.inputInterfaceIndex),
             .neigh6 = *(const in6_addr*)rule.destination.data(),
     };
 
-    Result<void> ret = mBpfIngressMap.deleteValue(key);
+    Result<void> ret = mBpfDownstream6Map.deleteValue(key);
 
     // Silently return success if the rule did not exist.
     if (!ret.ok() && ret.error().code() == ENOENT) return {};
@@ -1094,8 +1092,6 @@ Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
 }
 
 void TetherController::maybeStartBpf(const char* extIface) {
-    if (!bpf::isBpfSupported()) return;
-
     // TODO: perhaps ignore IPv4-only interface because IPv4 traffic downstream is not supported.
     int ifIndex = if_nametoindex(extIface);
     if (!ifIndex) {
@@ -1110,9 +1106,9 @@ void TetherController::maybeStartBpf(const char* extIface) {
         return;
     }
 
-    int rv = getTetherIngressProgFd(isEthernet.value());
+    int rv = getTetherDownstream6TcProgFd(isEthernet.value());
     if (rv < 0) {
-        ALOGE("getTetherIngressProgFd(%d) failure: %s", isEthernet.value(), strerror(-rv));
+        ALOGE("getTetherDownstream6TcProgFd(%d) failure: %s", isEthernet.value(), strerror(-rv));
         return;
     }
     unique_fd tetherProgFd(rv);
@@ -1126,8 +1122,6 @@ void TetherController::maybeStartBpf(const char* extIface) {
 }
 
 void TetherController::maybeStopBpf(const char* extIface) {
-    if (!bpf::isBpfSupported()) return;
-
     // TODO: perhaps ignore IPv4-only interface because IPv4 traffic downstream is not supported.
     int ifIndex = if_nametoindex(extIface);
     if (!ifIndex) {
@@ -1230,33 +1224,39 @@ std::string l2ToString(const uint8_t* addr, size_t len) {
 }  // namespace
 
 void TetherController::dumpBpf(DumpWriter& dw) {
-    if (!mBpfIngressMap.isValid() || !mBpfStatsMap.isValid() || !mBpfLimitMap.isValid()) {
+    if (!mBpfDownstream6Map.isValid() || !mBpfStatsMap.isValid() || !mBpfLimitMap.isValid()) {
         dw.println("BPF not supported");
         return;
     }
 
-    dw.println("BPF ingress map: iif(iface) v6addr -> oif(iface) srcmac dstmac ethertype [pmtu]");
-    const auto printIngressMap = [&dw](const TetherIngressKey& key, const TetherIngressValue& value,
-                                       const BpfMap<TetherIngressKey, TetherIngressValue>&) {
-        char addr[INET6_ADDRSTRLEN];
-        std::string src = l2ToString(value.macHeader.h_source, sizeof(value.macHeader.h_source));
-        std::string dst = l2ToString(value.macHeader.h_dest, sizeof(value.macHeader.h_dest));
-        inet_ntop(AF_INET6, &key.neigh6, addr, sizeof(addr));
+    dw.println(
+            "BPF downstream ipv6 map: iif(iface) v6addr -> oif(iface) srcmac dstmac ethertype "
+            "[pmtu]");
+    const auto printDownstream6Map =
+            [&dw](const TetherDownstream6Key& key, const TetherDownstream6Value& value,
+                  const BpfMap<TetherDownstream6Key, TetherDownstream6Value>&) {
+                char addr[INET6_ADDRSTRLEN];
+                std::string src =
+                        l2ToString(value.macHeader.h_source, sizeof(value.macHeader.h_source));
+                std::string dst =
+                        l2ToString(value.macHeader.h_dest, sizeof(value.macHeader.h_dest));
+                inet_ntop(AF_INET6, &key.neigh6, addr, sizeof(addr));
 
-        char iifStr[IFNAMSIZ] = "?";
-        char oifStr[IFNAMSIZ] = "?";
-        if_indextoname(key.iif, iifStr);
-        if_indextoname(value.oif, oifStr);
-        dw.println("%u(%s) %s -> %u(%s) %s %s %04x [%u]", key.iif, iifStr, addr, value.oif, oifStr,
-                   src.c_str(), dst.c_str(), ntohs(value.macHeader.h_proto), value.pmtu);
+                char iifStr[IFNAMSIZ] = "?";
+                char oifStr[IFNAMSIZ] = "?";
+                if_indextoname(key.iif, iifStr);
+                if_indextoname(value.oif, oifStr);
+                dw.println("%u(%s) %s -> %u(%s) %s %s %04x [%u]", key.iif, iifStr, addr, value.oif,
+                           oifStr, src.c_str(), dst.c_str(), ntohs(value.macHeader.h_proto),
+                           value.pmtu);
 
-        return Result<void>();
-    };
+                return Result<void>();
+            };
 
     dw.incIndent();
-    auto ret = mBpfIngressMap.iterateWithValue(printIngressMap);
+    auto ret = mBpfDownstream6Map.iterateWithValue(printDownstream6Map);
     if (!ret.ok()) {
-        dw.println("Error printing BPF ingress map: %s", ret.error().message().c_str());
+        dw.println("Error printing BPF downstream ipv6 map: %s", ret.error().message().c_str());
     }
     dw.decIndent();
 

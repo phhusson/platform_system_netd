@@ -3371,7 +3371,7 @@ static bool tcQdiscExists(const std::string& interface) {
 static bool tcFilterExists(const std::string& interface) {
     std::string command = StringPrintf("tc filter show dev %s ingress", interface.c_str());
     std::vector<std::string> lines = runCommand(command);
-    const std::basic_regex regex("^filter .* bpf .* prog_offload_schedcls_[0-9a-z_]+_tether_.*$");
+    const std::basic_regex regex("^filter .* bpf .* prog_offload_schedcls_tether_.*$");
     for (const auto& line : lines) {
         if (std::regex_match(Trim(line), regex)) return true;
     }

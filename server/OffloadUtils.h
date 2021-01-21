@@ -39,44 +39,46 @@ constexpr bool EGRESS = false;
 constexpr bool INGRESS = true;
 
 // The priority of clat/tether hooks - smaller is higher priority.
-constexpr uint16_t PRIO_CLAT = 1;
-constexpr uint16_t PRIO_TETHER = 2;
+// TC tether is higher priority then TC clat to match XDP winning over TC.
+constexpr uint16_t PRIO_TETHER = 1;
+constexpr uint16_t PRIO_CLAT = 2;
 
 // this returns an ARPHRD_* constant or a -errno
 int hardwareAddressType(const std::string& interface);
 
 base::Result<bool> isEthernet(const std::string& interface);
 
-inline int getClatEgressMapFd(void) {
-    const int fd = bpf::mapRetrieveRW(CLAT_EGRESS_MAP_PATH);
+inline int getClatEgress4MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(CLAT_EGRESS4_MAP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getClatEgressProgFd(bool with_ethernet_header) {
-    const int fd = bpf::retrieveProgram(with_ethernet_header ? CLAT_EGRESS_PROG_ETHER_PATH
-                                                             : CLAT_EGRESS_PROG_RAWIP_PATH);
+inline int getClatEgress4ProgFd(bool with_ethernet_header) {
+    const int fd = bpf::retrieveProgram(with_ethernet_header ? CLAT_EGRESS4_PROG_ETHER_PATH
+                                                             : CLAT_EGRESS4_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getClatIngressMapFd(void) {
-    const int fd = bpf::mapRetrieveRW(CLAT_INGRESS_MAP_PATH);
+inline int getClatIngress6MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(CLAT_INGRESS6_MAP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getClatIngressProgFd(bool with_ethernet_header) {
-    const int fd = bpf::retrieveProgram(with_ethernet_header ? CLAT_INGRESS_PROG_ETHER_PATH
-                                                             : CLAT_INGRESS_PROG_RAWIP_PATH);
+inline int getClatIngress6ProgFd(bool with_ethernet_header) {
+    const int fd = bpf::retrieveProgram(with_ethernet_header ? CLAT_INGRESS6_PROG_ETHER_PATH
+                                                             : CLAT_INGRESS6_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getTetherIngressMapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_INGRESS_MAP_PATH);
+inline int getTetherDownstream6MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(TETHER_DOWNSTREAM6_MAP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getTetherIngressProgFd(bool with_ethernet_header) {
-    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_INGRESS_PROG_ETHER_PATH
-                                                             : TETHER_INGRESS_PROG_RAWIP_PATH);
+inline int getTetherDownstream6TcProgFd(bool with_ethernet_header) {
+    const int fd =
+            bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH
+                                                      : TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
