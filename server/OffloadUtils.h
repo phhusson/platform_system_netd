@@ -135,6 +135,16 @@ inline int getTetherUpstream4TcProgFd(bool with_ethernet_header) {
     return (fd == -1) ? -errno : fd;
 }
 
+inline int getTether6TcProgFd(bool with_ethernet_header, bool downstream) {
+    return downstream ? getTetherDownstream6TcProgFd(with_ethernet_header)
+                      : getTetherUpstream6TcProgFd(with_ethernet_header);
+}
+
+inline int getTether4TcProgFd(bool with_ethernet_header, bool downstream) {
+    return downstream ? getTetherDownstream4TcProgFd(with_ethernet_header)
+                      : getTetherUpstream4TcProgFd(with_ethernet_header);
+}
+
 inline int getTetherStatsMapFd(void) {
     const int fd = bpf::mapRetrieveRW(TETHER_STATS_MAP_PATH);
     return (fd == -1) ? -errno : fd;
@@ -156,6 +166,11 @@ inline int getTetherUpstreamXdpProgFd(bool with_ethernet_header) {
     const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM_XDP_PROG_ETHER_PATH
                                                              : TETHER_UPSTREAM_XDP_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
+}
+
+inline int getTetherXdpProgFd(bool with_ethernet_header, bool downstream) {
+    return downstream ? getTetherDownstreamXdpProgFd(with_ethernet_header)
+                      : getTetherUpstreamXdpProgFd(with_ethernet_header);
 }
 
 int doTcQdiscClsact(int ifIndex, uint16_t nlMsgType, uint16_t nlMsgFlags);
