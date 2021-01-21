@@ -210,8 +210,8 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
     ASSERT_EQ(rv, 0);
 
     bpf::BpfMap<TetherDownstream6Key, TetherDownstream6Value> bpfDownstream6Map;
-    bpf::BpfMap<uint32_t, TetherStatsValue> bpfStatsMap;
-    bpf::BpfMap<uint32_t, uint64_t> bpfLimitMap;
+    bpf::BpfMap<TetherStatsKey, TetherStatsValue> bpfStatsMap;
+    bpf::BpfMap<TetherLimitKey, TetherLimitValue> bpfLimitMap;
 
     rv = getTetherDownstream6MapFd();
     ASSERT_GE(rv, 3);
