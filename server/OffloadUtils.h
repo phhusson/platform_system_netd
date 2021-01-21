@@ -88,10 +88,27 @@ inline int getTetherDownstream6MapFd(void) {
     return (fd == -1) ? -errno : fd;
 }
 
+inline int getTetherDownstream64MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(TETHER_DOWNSTREAM64_MAP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
+inline int getTetherDownstream4MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(TETHER_DOWNSTREAM4_MAP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
 inline int getTetherDownstream6TcProgFd(bool with_ethernet_header) {
     const int fd =
             bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH
                                                       : TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
+inline int getTetherDownstream4TcProgFd(bool with_ethernet_header) {
+    const int fd =
+            bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM4_TC_PROG_ETHER_PATH
+                                                      : TETHER_DOWNSTREAM4_TC_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
@@ -100,9 +117,20 @@ inline int getTetherUpstream6MapFd(void) {
     return (fd == -1) ? -errno : fd;
 }
 
+inline int getTetherUpstream4MapFd(void) {
+    const int fd = bpf::mapRetrieveRW(TETHER_UPSTREAM4_MAP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
 inline int getTetherUpstream6TcProgFd(bool with_ethernet_header) {
     const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM6_TC_PROG_ETHER_PATH
                                                              : TETHER_UPSTREAM6_TC_PROG_RAWIP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
+inline int getTetherUpstream4TcProgFd(bool with_ethernet_header) {
+    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM4_TC_PROG_ETHER_PATH
+                                                             : TETHER_UPSTREAM4_TC_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
@@ -113,6 +141,19 @@ inline int getTetherStatsMapFd(void) {
 
 inline int getTetherLimitMapFd(void) {
     const int fd = bpf::mapRetrieveRW(TETHER_LIMIT_MAP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
+inline int getTetherDownstreamXdpProgFd(bool with_ethernet_header) {
+    const int fd =
+            bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM_XDP_PROG_ETHER_PATH
+                                                      : TETHER_DOWNSTREAM_XDP_PROG_RAWIP_PATH);
+    return (fd == -1) ? -errno : fd;
+}
+
+inline int getTetherUpstreamXdpProgFd(bool with_ethernet_header) {
+    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM_XDP_PROG_ETHER_PATH
+                                                             : TETHER_UPSTREAM_XDP_PROG_RAWIP_PATH);
     return (fd == -1) ? -errno : fd;
 }
 
