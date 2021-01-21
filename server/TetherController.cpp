@@ -1031,8 +1031,9 @@ StatusOr<TetherController::TetherStatsList> TetherController::getTetherStats() {
 StatusOr<TetherController::TetherOffloadStatsList> TetherController::getTetherOffloadStats() {
     TetherOffloadStatsList statsList;
 
-    const auto processTetherStats = [&statsList](const uint32_t& key, const TetherStatsValue& value,
-                                                 const BpfMap<uint32_t, TetherStatsValue>&) {
+    const auto processTetherStats = [&statsList](const TetherStatsKey& key,
+                                                 const TetherStatsValue& value,
+                                                 const BpfMap<TetherStatsKey, TetherStatsValue>&) {
         statsList.push_back({.ifIndex = static_cast<int>(key),
                              .rxBytes = static_cast<int64_t>(value.rxBytes),
                              .rxPackets = static_cast<int64_t>(value.rxPackets),
@@ -1281,8 +1282,8 @@ void TetherController::dumpBpf(DumpWriter& dw) {
     dw.decIndent();
 
     dw.println("BPF stats (downlink): iif(iface) -> packets bytes errors");
-    const auto printStatsMap = [&dw](const uint32_t& key, const TetherStatsValue& value,
-                                     const BpfMap<uint32_t, TetherStatsValue>&) {
+    const auto printStatsMap = [&dw](const TetherStatsKey& key, const TetherStatsValue& value,
+                                     const BpfMap<TetherStatsKey, TetherStatsValue>&) {
         char iifStr[IFNAMSIZ] = "?";
         if_indextoname(key, iifStr);
         dw.println("%u(%s) -> %" PRIu64 " %" PRIu64 " %" PRIu64, key, iifStr, value.rxPackets,
@@ -1299,8 +1300,8 @@ void TetherController::dumpBpf(DumpWriter& dw) {
     dw.decIndent();
 
     dw.println("BPF limit: iif(iface) -> bytes");
-    const auto printLimitMap = [&dw](const uint32_t& key, const uint64_t& value,
-                                     const BpfMap<uint32_t, uint64_t>&) {
+    const auto printLimitMap = [&dw](const TetherLimitKey& key, const TetherLimitValue& value,
+                                     const BpfMap<TetherLimitKey, TetherLimitValue>&) {
         char iifStr[IFNAMSIZ] = "?";
         if_indextoname(key, iifStr);
         dw.println("%u(%s) -> %" PRIu64, key, iifStr, value);
