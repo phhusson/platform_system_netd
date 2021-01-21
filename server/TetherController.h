@@ -197,7 +197,7 @@ class TetherController {
 
     base::Result<void> setBpfLimit(uint32_t ifIndex, uint64_t limit);
     void initMaps();
-    void startDownstreamBpf(const char* extIface);
+    void startBpf(const char* iface, bool downstream);
     void stopBpf(const char* iface);
 
     static void addStats(TetherStatsList& statsList, const TetherStats& stats);
