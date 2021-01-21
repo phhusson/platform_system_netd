@@ -148,7 +148,6 @@ TEST_F(OffloadUtilsTest, GetTetherDownstream6MapFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetTetherDownstream6RawIpTcProgFd) {
-    // Currently only implementing downstream direction offload.
     // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
     SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
 
@@ -159,9 +158,33 @@ TEST_F(OffloadUtilsTest, GetTetherDownstream6RawIpTcProgFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetTetherDownstream6EtherTcProgFd) {
-    // Currently only implementing downstream direction offload.
     // RX Ether -> TX Ether does not require header adjustments
     int fd = getTetherDownstream6TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream6MapFd) {
+    int fd = getTetherUpstream6MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream6RawIpTcProgFd) {
+    // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
+    SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
+
+    int fd = getTetherUpstream6TcProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream6EtherTcProgFd) {
+    // RX Ether -> TX Ether does not require header adjustments
+    int fd = getTetherUpstream6TcProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
