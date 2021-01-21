@@ -204,10 +204,31 @@ bool TetherController::disableForwarding(const char* requester) {
 
 void TetherController::initMaps() {
     // Open BPF maps, ignoring errors because the device might not support BPF offload.
+    // TODO: All of this logic should be moved to the tethering mainline module.
     int fd = getTetherDownstream6MapFd();
     if (fd >= 0) {
         mBpfDownstream6Map.reset(fd);
         mBpfDownstream6Map.clear();
+    }
+    fd = getTetherDownstream64MapFd();
+    if (fd >= 0) {
+        mBpfDownstream64Map.reset(fd);
+        mBpfDownstream64Map.clear();
+    }
+    fd = getTetherDownstream4MapFd();
+    if (fd >= 0) {
+        mBpfDownstream4Map.reset(fd);
+        mBpfDownstream4Map.clear();
+    }
+    fd = getTetherUpstream6MapFd();
+    if (fd >= 0) {
+        mBpfUpstream6Map.reset(fd);
+        mBpfUpstream6Map.clear();
+    }
+    fd = getTetherUpstream4MapFd();
+    if (fd >= 0) {
+        mBpfUpstream4Map.reset(fd);
+        mBpfUpstream4Map.clear();
     }
     fd = getTetherStatsMapFd();
     if (fd >= 0) {
