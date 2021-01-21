@@ -78,12 +78,6 @@ class TrafficController {
     int deleteTagData(uint32_t tag, uid_t uid, uid_t callingUid) EXCLUDES(mMutex);
 
     /*
-     * Check if the current device have the bpf traffic stats accounting service
-     * running.
-     */
-    bool getBpfEnabled();
-
-    /*
      * Swap the stats map config from current active stats map to the idle one.
      */
     netdutils::Status swapActiveStatsMap() EXCLUDES(mMutex);
@@ -207,8 +201,6 @@ class TrafficController {
 
     netdutils::Status addRule(uint32_t uid, UidOwnerMatchType match, uint32_t iif = 0)
             REQUIRES(mMutex);
-
-    bool mBpfEnabled;
 
     // mMutex guards all accesses to mConfigurationMap, mUidOwnerMap, mUidPermissionMap,
     // mStatsMapA, mStatsMapB and mPrivilegedUser. It is designed to solve the following

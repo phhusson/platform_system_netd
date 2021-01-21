@@ -73,7 +73,7 @@ class TetherController {
     } mDnsmasqState{};
 
     // BPF maps, initialized by maybeInitMaps.
-    bpf::BpfMap<TetherIngressKey, TetherIngressValue> mBpfIngressMap;
+    bpf::BpfMap<TetherDownstream6Key, TetherDownstream6Value> mBpfDownstream6Map;
     bpf::BpfMap<uint32_t, TetherStatsValue> mBpfStatsMap;
     bpf::BpfMap<uint32_t, uint64_t> mBpfLimitMap;
 

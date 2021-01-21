@@ -905,8 +905,6 @@ int RouteController::modifyRoute(uint16_t action, uint16_t flags, const char* in
 }
 
 static void maybeModifyQdiscClsact(const char* interface, bool add) {
-    if (!bpf::isBpfSupported()) return;
-
     // The clsact attaching of v4- tun interface is triggered by ClatdController::maybeStartBpf
     // because the clat is started before the v4- interface is added to the network and the
     // clat startup needs to add {in, e}gress filters.

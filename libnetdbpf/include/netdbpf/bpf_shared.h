@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef NETDBPF_BPF_SHARED_H
-#define NETDBPF_BPF_SHARED_H
+#pragma once
 
 #include <linux/if.h>
 #include <linux/if_ether.h>
@@ -23,12 +22,18 @@
 #include <linux/in6.h>
 #include <netdutils/UidConstants.h>
 
-// This header file is shared by eBPF kernel programs and netd
+// This header file is shared by eBPF kernel programs (C) and netd (C++) and
+// some of the maps are also accessed directly from Java mainline module code.
+//
+// Hence: explicitly pad all relevant structures and assert that their size
+// is the sum of the sizes of their fields.
+#define STRUCT_SIZE(name, size) _Static_assert(sizeof(name) == (size), "Incorrect struct size.")
 
 typedef struct {
     uint32_t uid;
     uint32_t tag;
 } UidTagValue;
+STRUCT_SIZE(UidTagValue, 2 * 4);  // 8
 
 typedef struct {
     uint32_t uid;
@@ -36,6 +41,7 @@ typedef struct {
     uint32_t counterSet;
     uint32_t ifaceIndex;
 } StatsKey;
+STRUCT_SIZE(StatsKey, 4 * 4);  // 16
 
 typedef struct {
     uint64_t rxPackets;
@@ -43,10 +49,12 @@ typedef struct {
     uint64_t txPackets;
     uint64_t txBytes;
 } StatsValue;
+STRUCT_SIZE(StatsValue, 4 * 8);  // 32
 
 typedef struct {
     char name[IFNAMSIZ];
 } IfaceValue;
+STRUCT_SIZE(IfaceValue, 16);
 
 typedef struct {
     uint64_t rxBytes;
@@ -143,63 +151,72 @@ typedef struct {
     // Allowed interface index. Only applicable if IIF_MATCH is set in the rule bitmask above.
     uint32_t iif;
     // A bitmask of enum values in UidOwnerMatchType.
-    uint8_t rule;
+    uint32_t rule;
 } UidOwnerValue;
+STRUCT_SIZE(UidOwnerValue, 2 * 4);  // 8
 
 #define UID_RULES_CONFIGURATION_KEY 1
 #define CURRENT_STATS_MAP_CONFIGURATION_KEY 2
 
-#define CLAT_INGRESS_PROG_RAWIP_NAME "prog_clatd_schedcls_ingress_clat_rawip"
-#define CLAT_INGRESS_PROG_ETHER_NAME "prog_clatd_schedcls_ingress_clat_ether"
+#define CLAT_INGRESS6_PROG_RAWIP_NAME "prog_clatd_schedcls_ingress6_clat_rawip"
+#define CLAT_INGRESS6_PROG_ETHER_NAME "prog_clatd_schedcls_ingress6_clat_ether"
 
-#define CLAT_INGRESS_PROG_RAWIP_PATH BPF_PATH "/" CLAT_INGRESS_PROG_RAWIP_NAME
-#define CLAT_INGRESS_PROG_ETHER_PATH BPF_PATH "/" CLAT_INGRESS_PROG_ETHER_NAME
+#define CLAT_INGRESS6_PROG_RAWIP_PATH BPF_PATH "/" CLAT_INGRESS6_PROG_RAWIP_NAME
+#define CLAT_INGRESS6_PROG_ETHER_PATH BPF_PATH "/" CLAT_INGRESS6_PROG_ETHER_NAME
 
-#define CLAT_INGRESS_MAP_PATH BPF_PATH "/map_clatd_clat_ingress_map"
+#define CLAT_INGRESS6_MAP_PATH BPF_PATH "/map_clatd_clat_ingress6_map"
 
 typedef struct {
     uint32_t iif;            // The input interface index
     struct in6_addr pfx96;   // The source /96 nat64 prefix, bottom 32 bits must be 0
     struct in6_addr local6;  // The full 128-bits of the destination IPv6 address
-} ClatIngressKey;
+} ClatIngress6Key;
+STRUCT_SIZE(ClatIngress6Key, 4 + 2 * 16);  // 36
 
 typedef struct {
     uint32_t oif;           // The output interface to redirect to (0 means don't redirect)
     struct in_addr local4;  // The destination IPv4 address
-} ClatIngressValue;
+} ClatIngress6Value;
+STRUCT_SIZE(ClatIngress6Value, 4 + 4);  // 8
 
-#define CLAT_EGRESS_PROG_RAWIP_NAME "prog_clatd_schedcls_egress_clat_rawip"
-#define CLAT_EGRESS_PROG_ETHER_NAME "prog_clatd_schedcls_egress_clat_ether"
+#define CLAT_EGRESS4_PROG_RAWIP_NAME "prog_clatd_schedcls_egress4_clat_rawip"
+#define CLAT_EGRESS4_PROG_ETHER_NAME "prog_clatd_schedcls_egress4_clat_ether"
 
-#define CLAT_EGRESS_PROG_RAWIP_PATH BPF_PATH "/" CLAT_EGRESS_PROG_RAWIP_NAME
-#define CLAT_EGRESS_PROG_ETHER_PATH BPF_PATH "/" CLAT_EGRESS_PROG_ETHER_NAME
+#define CLAT_EGRESS4_PROG_RAWIP_PATH BPF_PATH "/" CLAT_EGRESS4_PROG_RAWIP_NAME
+#define CLAT_EGRESS4_PROG_ETHER_PATH BPF_PATH "/" CLAT_EGRESS4_PROG_ETHER_NAME
 
-#define CLAT_EGRESS_MAP_PATH BPF_PATH "/map_clatd_clat_egress_map"
+#define CLAT_EGRESS4_MAP_PATH BPF_PATH "/map_clatd_clat_egress4_map"
 
 typedef struct {
     uint32_t iif;           // The input interface index
     struct in_addr local4;  // The source IPv4 address
-} ClatEgressKey;
+} ClatEgress4Key;
+STRUCT_SIZE(ClatEgress4Key, 4 + 4);  // 8
 
 typedef struct {
     uint32_t oif;            // The output interface to redirect to
     struct in6_addr local6;  // The full 128-bits of the source IPv6 address
     struct in6_addr pfx96;   // The destination /96 nat64 prefix, bottom 32 bits must be 0
     bool oifIsEthernet;      // Whether the output interface requires ethernet header
-} ClatEgressValue;
+    uint8_t pad[3];
+} ClatEgress4Value;
+STRUCT_SIZE(ClatEgress4Value, 4 + 2 * 16 + 1 + 3);  // 40
 
-#define TETHER_INGRESS_PROG_RAWIP_NAME "prog_offload_schedcls_ingress_tether_rawip"
-#define TETHER_INGRESS_PROG_ETHER_NAME "prog_offload_schedcls_ingress_tether_ether"
+#define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_downstream6_rawip"
+#define TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_downstream6_ether"
 
-#define TETHER_INGRESS_PROG_RAWIP_PATH BPF_PATH "/" TETHER_INGRESS_PROG_RAWIP_NAME
-#define TETHER_INGRESS_PROG_ETHER_PATH BPF_PATH "/" TETHER_INGRESS_PROG_ETHER_NAME
+#define TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH \
+    BPF_PATH "/tethering/" TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME
+#define TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH \
+    BPF_PATH "/tethering/" TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME
 
-#define TETHER_INGRESS_MAP_PATH BPF_PATH "/map_offload_tether_ingress_map"
+#define TETHER_DOWNSTREAM6_MAP_PATH BPF_PATH "/tethering/map_offload_tether_downstream6_map"
 
 typedef struct {
     uint32_t iif;            // The input interface index
     struct in6_addr neigh6;  // The destination IPv6 address
-} TetherIngressKey;
+} TetherDownstream6Key;
+STRUCT_SIZE(TetherDownstream6Key, 4 + 16);  // 20
 
 typedef struct {
     uint32_t oif;  // The output interface to redirect to
@@ -208,9 +225,32 @@ typedef struct {
     // Ethernet) have 6-byte MAC addresses.
     struct ethhdr macHeader;  // includes dst/src mac and ethertype
     uint16_t pmtu;            // The maximum L3 output path/route mtu
-} TetherIngressValue;
+} TetherDownstream6Value;
+STRUCT_SIZE(TetherDownstream6Value, 4 + 14 + 2);  // 20
 
-#define TETHER_STATS_MAP_PATH BPF_PATH "/map_offload_tether_stats_map"
+#define TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME "prog_offload_schedcls_tether_upstream6_rawip"
+#define TETHER_UPSTREAM6_TC_PROG_ETHER_NAME "prog_offload_schedcls_tether_upstream6_ether"
+
+#define TETHER_UPSTREAM6_TC_PROG_RAWIP_PATH \
+    BPF_PATH "/tethering/" TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME
+#define TETHER_UPSTREAM6_TC_PROG_ETHER_PATH \
+    BPF_PATH "/tethering/" TETHER_UPSTREAM6_TC_PROG_ETHER_NAME
+
+#define TETHER_UPSTREAM6_MAP_PATH BPF_PATH "/tethering/map_offload_tether_upstream6_map"
+
+typedef struct {
+    uint32_t iif;  // The input interface index
+} TetherUpstream6Key;
+STRUCT_SIZE(TetherUpstream6Key, 4);
+
+typedef struct {
+    uint32_t oif;             // The output interface to redirect to
+    struct ethhdr macHeader;  // includes dst/src mac and ethertype
+    uint16_t pmtu;            // The maximum L3 output path/route mtu
+} TetherUpstream6Value;
+STRUCT_SIZE(TetherUpstream6Value, 4 + 14 + 2);  // 20
+
+#define TETHER_STATS_MAP_PATH BPF_PATH "/tethering/map_offload_tether_stats_map"
 
 typedef struct {
     uint64_t rxPackets;
@@ -220,7 +260,8 @@ typedef struct {
     uint64_t txBytes;
     uint64_t txErrors;
 } TetherStatsValue;
+STRUCT_SIZE(TetherStatsValue, 6 * 8);  // 48
 
-#define TETHER_LIMIT_MAP_PATH BPF_PATH "/map_offload_tether_limit_map"
+#define TETHER_LIMIT_MAP_PATH BPF_PATH "/tethering/map_offload_tether_limit_map"
 
-#endif  // NETDBPF_BPF_SHARED_H
+#undef STRUCT_SIZE
