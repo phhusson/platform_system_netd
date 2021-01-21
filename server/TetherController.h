@@ -74,8 +74,8 @@ class TetherController {
 
     // BPF maps, initialized by initMaps.
     bpf::BpfMap<TetherDownstream6Key, TetherDownstream6Value> mBpfDownstream6Map;
-    bpf::BpfMap<uint32_t, TetherStatsValue> mBpfStatsMap;
-    bpf::BpfMap<uint32_t, uint64_t> mBpfLimitMap;
+    bpf::BpfMap<TetherStatsKey, TetherStatsValue> mBpfStatsMap;
+    bpf::BpfMap<TetherLimitKey, TetherLimitValue> mBpfLimitMap;
 
   public:
     TetherController();
