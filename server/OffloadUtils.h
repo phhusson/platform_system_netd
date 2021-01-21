@@ -53,7 +53,8 @@ constexpr bool DOWNSTREAM = true;
 
 // The priority of clat/tether hooks - smaller is higher priority.
 // TC tether is higher priority then TC clat to match XDP winning over TC.
-constexpr uint16_t PRIO_TETHER = 1;
+constexpr uint16_t PRIO_TETHER6 = 1;
+constexpr uint16_t PRIO_TETHER4 = 2;
 constexpr uint16_t PRIO_CLAT = 3;
 
 // this returns an ARPHRD_* constant or a -errno
@@ -187,9 +188,14 @@ inline int tcFilterAddDevEgressClatIpv4(int ifIndex, int bpfFd, bool ethernet) {
 }
 
 // tc filter add dev .. ingress prio 1 protocol ipv6 bpf object-pinned /sys/fs/bpf/... direct-action
-inline int tcFilterAddDevIngressTether(int ifIndex, int bpfFd, bool ethernet, bool downstream) {
-    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_TETHER, ETH_P_IPV6, bpfFd, ethernet,
+inline int tcFilterAddDevIngress6Tether(int ifIndex, int bpfFd, bool ethernet, bool downstream) {
+    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_TETHER6, ETH_P_IPV6, bpfFd, ethernet,
                              downstream);
+}
+
+// tc filter add dev .. ingress prio 2 protocol ip bpf object-pinned /sys/fs/bpf/... direct-action
+inline int tcFilterAddDevIngress4Tether(int ifIndex, int bpfFd, bool ethernet, bool downstream) {
+    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_TETHER4, ETH_P_IP, bpfFd, ethernet, downstream);
 }
 
 // tc filter del dev .. in/egress prio .. protocol ..
@@ -206,8 +212,13 @@ inline int tcFilterDelDevEgressClatIpv4(int ifIndex) {
 }
 
 // tc filter del dev .. ingress prio 1 protocol ipv6
-inline int tcFilterDelDevIngressTether(int ifIndex) {
-    return tcFilterDelDev(ifIndex, INGRESS, PRIO_TETHER, ETH_P_IPV6);
+inline int tcFilterDelDevIngress6Tether(int ifIndex) {
+    return tcFilterDelDev(ifIndex, INGRESS, PRIO_TETHER6, ETH_P_IPV6);
+}
+
+// tc filter del dev .. ingress prio 2 protocol ip
+inline int tcFilterDelDevIngress4Tether(int ifIndex) {
+    return tcFilterDelDev(ifIndex, INGRESS, PRIO_TETHER4, ETH_P_IP);
 }
 
 }  // namespace net

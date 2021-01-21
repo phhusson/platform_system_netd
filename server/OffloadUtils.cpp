@@ -251,6 +251,20 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
             TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
 
     // This macro expands (from header files) to:
+    //   prog_offload_schedcls_tether_downstream4_rawip:[*fsobj]
+    // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
+    // (also compatible with anything that has 0 size L2 header)
+    static constexpr char name_tether_down4_rawip[] =
+            TETHER_DOWNSTREAM4_TC_PROG_RAWIP_NAME FSOBJ_SUFFIX;
+
+    // This macro expands (from header files) to:
+    //   prog_offload_schedcls_tether_downstream4_ether:[*fsobj]
+    // and is the name of the pinned ingress ebpf program for ARPHRD_ETHER interfaces.
+    // (also compatible with anything that has standard ethernet header)
+    static constexpr char name_tether_down4_ether[] =
+            TETHER_DOWNSTREAM4_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
+
+    // This macro expands (from header files) to:
     //   prog_offload_schedcls_tether_upstream6_rawip:[*fsobj]
     // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
     // (also compatible with anything that has 0 size L2 header)
@@ -263,6 +277,20 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
     // (also compatible with anything that has standard ethernet header)
     static constexpr char name_tether_up6_ether[] =
             TETHER_UPSTREAM6_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
+
+    // This macro expands (from header files) to:
+    //   prog_offload_schedcls_tether_upstream4_rawip:[*fsobj]
+    // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
+    // (also compatible with anything that has 0 size L2 header)
+    static constexpr char name_tether_up4_rawip[] =
+            TETHER_UPSTREAM4_TC_PROG_RAWIP_NAME FSOBJ_SUFFIX;
+
+    // This macro expands (from header files) to:
+    //   prog_offload_schedcls_tether_upstream4_ether:[*fsobj]
+    // and is the name of the pinned ingress ebpf program for ARPHRD_ETHER interfaces.
+    // (also compatible with anything that has standard ethernet header)
+    static constexpr char name_tether_up4_ether[] =
+            TETHER_UPSTREAM4_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
 
 #undef FSOBJ_SUFFIX
 
@@ -277,8 +305,12 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
             sizeof(name_clat_tx_ether),
             sizeof(name_tether_down6_rawip),
             sizeof(name_tether_down6_ether),
+            sizeof(name_tether_down4_rawip),
+            sizeof(name_tether_down4_ether),
             sizeof(name_tether_up6_rawip),
             sizeof(name_tether_up6_ether),
+            sizeof(name_tether_up4_rawip),
+            sizeof(name_tether_up4_ether),
     });
 
     // These are not compile time constants: 'name' is used in strncpy below
@@ -287,9 +319,15 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
     const char* const name_clat = ingress ? name_clat_rx : name_clat_tx;
     const char* const name_down6_tether =
             ethernet ? name_tether_down6_ether : name_tether_down6_rawip;
+    const char* const name_down4_tether =
+            ethernet ? name_tether_down4_ether : name_tether_down4_rawip;
     const char* const name_up6_tether = ethernet ? name_tether_up6_ether : name_tether_up6_rawip;
-    const char* const name_tether = downstream ? name_down6_tether : name_up6_tether;
-    const char* const name = (prio == PRIO_TETHER) ? name_tether : name_clat;
+    const char* const name_up4_tether = ethernet ? name_tether_up4_ether : name_tether_up4_rawip;
+    const char* const name_tether6 = downstream ? name_down6_tether : name_up6_tether;
+    const char* const name_tether4 = downstream ? name_down4_tether : name_up4_tether;
+    const char* const name = (prio == PRIO_CLAT)
+                                     ? name_clat
+                                     : ((prio == PRIO_TETHER6) ? name_tether6 : name_tether4);
 
     struct {
         nlmsghdr n;
