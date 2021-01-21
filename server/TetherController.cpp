@@ -1113,9 +1113,9 @@ void TetherController::maybeStartBpf(const char* extIface) {
     }
     unique_fd tetherProgFd(rv);
 
-    rv = tcFilterAddDevIngressTether(ifIndex, tetherProgFd, isEthernet.value());
+    rv = tcFilterAddDevIngressTether(ifIndex, tetherProgFd, isEthernet.value(), DOWNSTREAM);
     if (rv) {
-        ALOGE("tcFilterAddDevIngressTether(%d[%s], %d) failure: %s", ifIndex, extIface,
+        ALOGE("tcFilterAddDevIngressTether(%d[%s], %d, DOWNSTREAM) failure: %s", ifIndex, extIface,
               isEthernet.value(), strerror(-rv));
         return;
     }

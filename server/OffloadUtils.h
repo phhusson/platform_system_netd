@@ -38,6 +38,19 @@ constexpr bool ETHER = true;
 constexpr bool EGRESS = false;
 constexpr bool INGRESS = true;
 
+// For better code clarify when used for 'bool downstream' parameter.
+//
+// This is talking about the direction of travel of the offloaded packets.
+//
+// Upstream means packets heading towards the internet/uplink (upload),
+// thus for tethering this is attached to ingress on the downstream interface,
+// while for clat this is attached to egress on the v4-* clat interface.
+//
+// Downstream means packets coming from the internet/uplink (download), thus
+// for both clat and tethering this is attached to ingress on the upstream interface.
+constexpr bool UPSTREAM = false;
+constexpr bool DOWNSTREAM = true;
+
 // The priority of clat/tether hooks - smaller is higher priority.
 // TC tether is higher priority then TC clat to match XDP winning over TC.
 constexpr uint16_t PRIO_TETHER = 1;
@@ -120,21 +133,22 @@ inline int tcQdiscDelDevClsact(int ifIndex) {
 // tc filter add dev .. in/egress prio 1 protocol ipv6/ip bpf object-pinned /sys/fs/bpf/...
 // direct-action
 int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, int bpfFd,
-                      bool ethernet);
+                      bool ethernet, bool downstream);
 
 // tc filter add dev .. ingress prio 1 protocol ipv6 bpf object-pinned /sys/fs/bpf/... direct-action
 inline int tcFilterAddDevIngressClatIpv6(int ifIndex, int bpfFd, bool ethernet) {
-    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_CLAT, ETH_P_IPV6, bpfFd, ethernet);
+    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_CLAT, ETH_P_IPV6, bpfFd, ethernet, DOWNSTREAM);
 }
 
 // tc filter add dev .. egress prio 1 protocol ip bpf object-pinned /sys/fs/bpf/... direct-action
 inline int tcFilterAddDevEgressClatIpv4(int ifIndex, int bpfFd, bool ethernet) {
-    return tcFilterAddDevBpf(ifIndex, EGRESS, PRIO_CLAT, ETH_P_IP, bpfFd, ethernet);
+    return tcFilterAddDevBpf(ifIndex, EGRESS, PRIO_CLAT, ETH_P_IP, bpfFd, ethernet, UPSTREAM);
 }
 
 // tc filter add dev .. ingress prio 2 protocol ipv6 bpf object-pinned /sys/fs/bpf/... direct-action
-inline int tcFilterAddDevIngressTether(int ifIndex, int bpfFd, bool ethernet) {
-    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_TETHER, ETH_P_IPV6, bpfFd, ethernet);
+inline int tcFilterAddDevIngressTether(int ifIndex, int bpfFd, bool ethernet, bool downstream) {
+    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_TETHER, ETH_P_IPV6, bpfFd, ethernet,
+                             downstream);
 }
 
 // tc filter del dev .. in/egress prio .. protocol ..
