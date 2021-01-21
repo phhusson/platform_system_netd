@@ -206,7 +206,7 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
     ASSERT_EQ(errno, 0);
     ASSERT_GE(bpfFd, 3);
 
-    rv = tcFilterAddDevIngressTether(tunif, bpfFd, /* ethernet*/ false);
+    rv = tcFilterAddDevIngressTether(tunif, bpfFd, /* ethernet */ false, DOWNSTREAM);
     ASSERT_EQ(rv, 0);
 
     bpf::BpfMap<TetherDownstream6Key, TetherDownstream6Value> bpfDownstream6Map;
