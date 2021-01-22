@@ -147,8 +147,21 @@ TEST_F(OffloadUtilsTest, GetTetherDownstream6MapFd) {
     close(fd);
 }
 
+TEST_F(OffloadUtilsTest, GetTetherDownstream64MapFd) {
+    int fd = getTetherDownstream64MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstream4MapFd) {
+    int fd = getTetherDownstream4MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
 TEST_F(OffloadUtilsTest, GetTetherDownstream6RawIpTcProgFd) {
-    // Currently only implementing downstream direction offload.
     // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
     SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
 
@@ -159,9 +172,112 @@ TEST_F(OffloadUtilsTest, GetTetherDownstream6RawIpTcProgFd) {
 }
 
 TEST_F(OffloadUtilsTest, GetTetherDownstream6EtherTcProgFd) {
-    // Currently only implementing downstream direction offload.
     // RX Ether -> TX Ether does not require header adjustments
     int fd = getTetherDownstream6TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstream4RawIpTcProgFd) {
+    // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
+    SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
+
+    int fd = getTetherDownstream4TcProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstream4EtherTcProgFd) {
+    // RX Ether -> TX Ether does not require header adjustments
+    int fd = getTetherDownstream4TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream6MapFd) {
+    int fd = getTetherUpstream6MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream4MapFd) {
+    int fd = getTetherUpstream4MapFd();
+    ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream6RawIpTcProgFd) {
+    // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
+    SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
+
+    int fd = getTetherUpstream6TcProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream6EtherTcProgFd) {
+    // RX Ether -> TX Ether does not require header adjustments
+    int fd = getTetherUpstream6TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream4RawIpTcProgFd) {
+    // RX Rawip -> TX Ether requires header adjustments and thus 4.14.
+    SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
+
+    int fd = getTetherUpstream4TcProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstream4EtherTcProgFd) {
+    // RX Ether -> TX Ether does not require header adjustments
+    int fd = getTetherUpstream4TcProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstreamRawIpXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherDownstreamXdpProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherDownstreamEtherXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherDownstreamXdpProgFd(ETHER);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstreamRawIpXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherUpstreamXdpProgFd(RAWIP);
+    ASSERT_GE(fd, 3);
+    EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
+    close(fd);
+}
+
+TEST_F(OffloadUtilsTest, GetTetherUpstreamEtherXdpProgFd) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    int fd = getTetherUpstreamXdpProgFd(ETHER);
     ASSERT_GE(fd, 3);
     EXPECT_EQ(FD_CLOEXEC, fcntl(fd, F_GETFD));
     close(fd);
@@ -193,7 +309,8 @@ TEST_F(OffloadUtilsTest, AttachReplaceDetachClsactLo) {
     EXPECT_EQ(-EINVAL, tcQdiscDelDevClsact(LOOPBACK_IFINDEX));
 }
 
-static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool ethernet) {
+static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool ethernet,
+                                               const bool downstream) {
     const bool extended = android::bpf::isAtLeastKernelVersion(4, 14, 0);
     // Older kernels return EINVAL instead of ENOENT due to lacking proper error propagation...
     const int errNOENT = android::bpf::isAtLeastKernelVersion(4, 19, 0) ? ENOENT : EINVAL;
@@ -201,10 +318,15 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
     int clatBpfFd = ingress ? getClatIngress6ProgFd(ethernet) : getClatEgress4ProgFd(ethernet);
     ASSERT_GE(clatBpfFd, 3);
 
-    int tetherBpfFd = -1;
+    int tether6BpfFd = -1;
+    int tether4BpfFd = -1;
     if (extended && ingress) {
-        tetherBpfFd = getTetherDownstream6TcProgFd(ethernet);
-        ASSERT_GE(tetherBpfFd, 3);
+        tether6BpfFd = downstream ? getTetherDownstream6TcProgFd(ethernet)
+                                  : getTetherUpstream6TcProgFd(ethernet);
+        ASSERT_GE(tether6BpfFd, 3);
+        tether4BpfFd = downstream ? getTetherDownstream4TcProgFd(ethernet)
+                                  : getTetherUpstream4TcProgFd(ethernet);
+        ASSERT_GE(tether4BpfFd, 3);
     }
 
     // This attaches and detaches a clsact plus ebpf program to loopback
@@ -219,8 +341,12 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
     if (ingress) {
         EXPECT_EQ(0, tcFilterAddDevIngressClatIpv6(LOOPBACK_IFINDEX, clatBpfFd, ethernet));
         if (extended) {
-            EXPECT_EQ(0, tcFilterAddDevIngressTether(LOOPBACK_IFINDEX, tetherBpfFd, ethernet));
-            EXPECT_EQ(0, tcFilterDelDevIngressTether(LOOPBACK_IFINDEX));
+            EXPECT_EQ(0, tcFilterAddDevIngress6Tether(LOOPBACK_IFINDEX, tether6BpfFd, ethernet,
+                                                      downstream));
+            EXPECT_EQ(0, tcFilterAddDevIngress4Tether(LOOPBACK_IFINDEX, tether4BpfFd, ethernet,
+                                                      downstream));
+            EXPECT_EQ(0, tcFilterDelDevIngress6Tether(LOOPBACK_IFINDEX));
+            EXPECT_EQ(0, tcFilterDelDevIngress4Tether(LOOPBACK_IFINDEX));
         }
         EXPECT_EQ(0, tcFilterDelDevIngressClatIpv6(LOOPBACK_IFINDEX));
     } else {
@@ -233,24 +359,27 @@ static void checkAttachDetachBpfFilterClsactLo(const bool ingress, const bool et
     EXPECT_EQ(-EINVAL, tcFilterDelDevIngressClatIpv6(LOOPBACK_IFINDEX));
     EXPECT_EQ(-EINVAL, tcFilterDelDevEgressClatIpv4(LOOPBACK_IFINDEX));
 
-    if (tetherBpfFd != -1) close(tetherBpfFd);
+    if (tether4BpfFd != -1) close(tether4BpfFd);
+    if (tether6BpfFd != -1) close(tether6BpfFd);
     close(clatBpfFd);
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterRawIpClsactEgressLo) {
-    checkAttachDetachBpfFilterClsactLo(EGRESS, RAWIP);
+    checkAttachDetachBpfFilterClsactLo(EGRESS, RAWIP, UPSTREAM);
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterEthernetClsactEgressLo) {
-    checkAttachDetachBpfFilterClsactLo(EGRESS, ETHER);
+    checkAttachDetachBpfFilterClsactLo(EGRESS, ETHER, UPSTREAM);
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterRawIpClsactIngressLo) {
-    checkAttachDetachBpfFilterClsactLo(INGRESS, RAWIP);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, RAWIP, DOWNSTREAM);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, RAWIP, UPSTREAM);
 }
 
 TEST_F(OffloadUtilsTest, CheckAttachBpfFilterEthernetClsactIngressLo) {
-    checkAttachDetachBpfFilterClsactLo(INGRESS, ETHER);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, ETHER, DOWNSTREAM);
+    checkAttachDetachBpfFilterClsactLo(INGRESS, ETHER, UPSTREAM);
 }
 
 }  // namespace net
