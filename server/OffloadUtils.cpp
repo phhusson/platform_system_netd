@@ -147,6 +147,64 @@ static int sendAndProcessNetlinkResponse(const void* req, int len) {
     return resp.e.error;  // returns 0 on success
 }
 
+int doSetXDP(int ifIndex, int fd, __u32 flags) {
+    const struct {
+        nlmsghdr n;
+        ifinfomsg i;
+        struct {
+            nlattr attr;
+            struct {
+                nlattr attr;
+                int value;
+            } fd;
+            struct {
+                nlattr attr;
+                __u32 value;
+            } flags;
+        } nested;
+    } req = {
+            .n =
+                    {
+                            .nlmsg_len = sizeof(req),
+                            .nlmsg_type = RTM_SETLINK,
+                            .nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
+                    },
+            .i =
+                    {
+                            .ifi_family = AF_UNSPEC,
+                            .ifi_index = ifIndex,
+                    },
+            .nested =
+                    {
+                            .attr =
+                                    {
+                                            .nla_len = sizeof(req.nested),
+                                            .nla_type = NLA_F_NESTED | IFLA_XDP,
+                                    },
+                            .fd =
+                                    {
+                                            .attr =
+                                                    {
+                                                            .nla_len = sizeof(req.nested.fd),
+                                                            .nla_type = IFLA_XDP_FD,
+                                                    },
+                                            .value = fd,  // -1 means remove
+                                    },
+                            .flags =
+                                    {
+                                            .attr =
+                                                    {
+                                                            .nla_len = sizeof(req.nested.flags),
+                                                            .nla_type = IFLA_XDP_FLAGS,
+                                                    },
+                                            .value = flags,
+                                    },
+                    },
+    };
+
+    return sendAndProcessNetlinkResponse(&req, sizeof(req));
+}
+
 // ADD:     nlMsgType=RTM_NEWQDISC nlMsgFlags=NLM_F_EXCL|NLM_F_CREATE
 // REPLACE: nlMsgType=RTM_NEWQDISC nlMsgFlags=NLM_F_CREATE|NLM_F_REPLACE
 // DEL:     nlMsgType=RTM_DELQDISC nlMsgFlags=0
