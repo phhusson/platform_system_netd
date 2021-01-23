@@ -98,6 +98,14 @@ TEST_F(OffloadUtilsTest, IsEthernetOfCellular) {
     ASSERT_FALSE(res.value());
 }
 
+TEST_F(OffloadUtilsTest, DeviceMTUOfNonExistingIf) {
+    ASSERT_EQ(-ENODEV, deviceMTU("not_existing_if"));
+}
+
+TEST_F(OffloadUtilsTest, DeviceMTUofLoopback) {
+    ASSERT_EQ(65536, deviceMTU("lo"));
+}
+
 TEST_F(OffloadUtilsTest, GetClatEgress4MapFd) {
     int fd = getClatEgress4MapFd();
     ASSERT_GE(fd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3

@@ -61,6 +61,9 @@ constexpr uint16_t PRIO_CLAT = 3;
 // this returns an ARPHRD_* constant or a -errno
 int hardwareAddressType(const std::string& interface);
 
+// return MTU or -errno
+int deviceMTU(const std::string& interface);
+
 base::Result<bool> isEthernet(const std::string& interface);
 
 inline int getClatEgress4MapFd(void) {
