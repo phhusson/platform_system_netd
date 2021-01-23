@@ -382,5 +382,72 @@ TEST_F(OffloadUtilsTest, CheckAttachBpfFilterEthernetClsactIngressLo) {
     checkAttachDetachBpfFilterClsactLo(INGRESS, ETHER, UPSTREAM);
 }
 
+static int tryLoUdp4(bool expectSuccess) {
+    errno = 0;
+
+    const int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    EXPECT_GE(fd, 3);
+    if (fd < 0) return -errno;
+
+    struct sockaddr_in addr4 = {
+            .sin_family = AF_INET,
+    };
+    int rv = bind(fd, (struct sockaddr*)&addr4, sizeof(addr4));
+    EXPECT_EQ(0, rv);
+    if (rv) return -errno;
+
+    socklen_t addr4len = sizeof(addr4);
+    rv = getsockname(fd, (struct sockaddr*)&addr4, &addr4len);
+    EXPECT_EQ(0, rv);
+    if (rv) return -errno;
+    EXPECT_EQ(static_cast<socklen_t>(sizeof(addr4)), addr4len);
+
+    rv = connect(fd, (struct sockaddr*)&addr4, sizeof(addr4));
+    EXPECT_EQ(0, rv);
+    if (rv) return -errno;
+
+    char sendBuf[] = "hello";
+    rv = send(fd, &sendBuf, sizeof(sendBuf), MSG_DONTWAIT);
+    EXPECT_EQ(static_cast<int>(sizeof(sendBuf)), rv);
+
+    char recvBuf[sizeof(sendBuf) + 1] = {};
+    rv = recv(fd, &recvBuf, sizeof(recvBuf), MSG_DONTWAIT);
+
+    if (expectSuccess) {
+        EXPECT_EQ(static_cast<int>(sizeof(sendBuf)), rv);
+        EXPECT_EQ(0, memcmp(sendBuf, recvBuf, sizeof(sendBuf)));
+    } else {
+        EXPECT_EQ(-1, rv);
+        EXPECT_EQ(EAGAIN, errno);
+    }
+
+    rv = close(fd);
+    EXPECT_EQ(0, rv);
+    if (rv) return -errno;
+
+    return 0;
+}
+
+TEST_F(OffloadUtilsTest, CheckAttachXdpLo) {
+    SKIP_IF_XDP_NOT_SUPPORTED;
+
+    const int xdpFd =
+            bpf::retrieveProgram("/sys/fs/bpf/tethering/prog_test_xdp_drop_ipv4_udp_ether");
+    ASSERT_GE(xdpFd, 3);  // 0,1,2 - stdin/out/err, thus fd >= 3
+    EXPECT_EQ(FD_CLOEXEC, fcntl(xdpFd, F_GETFD));
+
+    EXPECT_EQ(0, tryLoUdp4(true));
+    EXPECT_EQ(0, addXDP(LOOPBACK_IFINDEX, xdpFd, XDP_FLAGS_SKB_MODE));
+    EXPECT_EQ(0, tryLoUdp4(false));
+    EXPECT_EQ(-EBUSY, addXDP(LOOPBACK_IFINDEX, xdpFd, XDP_FLAGS_SKB_MODE));
+    EXPECT_EQ(0, tryLoUdp4(false));
+    EXPECT_EQ(0, setXDP(LOOPBACK_IFINDEX, xdpFd, XDP_FLAGS_SKB_MODE));
+    EXPECT_EQ(0, tryLoUdp4(false));
+    EXPECT_EQ(0, removeXDP(LOOPBACK_IFINDEX, XDP_FLAGS_SKB_MODE));
+    EXPECT_EQ(0, tryLoUdp4(true));
+
+    close(xdpFd);
+}
+
 }  // namespace net
 }  // namespace android
