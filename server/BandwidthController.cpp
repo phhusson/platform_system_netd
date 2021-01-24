@@ -70,6 +70,7 @@ const char BandwidthController::LOCAL_GLOBAL_ALERT[] = "bw_global_alert";
 auto BandwidthController::iptablesRestoreFunction = execIptablesRestoreWithOutput;
 
 using android::base::Join;
+using android::base::StartsWith;
 using android::base::StringAppendF;
 using android::base::StringPrintf;
 using android::net::FirewallController;
@@ -771,11 +772,11 @@ void BandwidthController::parseAndFlushCostlyTables(const std::string& ruleList,
 
     // Find and flush all rules starting with "-N bw_costly_<iface>" except "-N bw_costly_shared".
     while (std::getline(stream, rule, '\n')) {
-        if (rule.find(NEW_CHAIN_COMMAND) != 0) continue;
+        if (!StartsWith(rule, NEW_CHAIN_COMMAND)) continue;
         chainName = rule.substr(NEW_CHAIN_COMMAND.size());
         ALOGV("parse chainName=<%s> orig line=<%s>", chainName.c_str(), rule.c_str());
 
-        if (chainName.find("bw_costly_") != 0 || chainName == std::string("bw_costly_shared")) {
+        if (!StartsWith(chainName, "bw_costly_") || chainName == std::string("bw_costly_shared")) {
             continue;
         }
 
