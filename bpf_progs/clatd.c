@@ -46,6 +46,9 @@ static inline __always_inline int nat64(struct __sk_buff* skb, bool is_ethernet)
     const struct ethhdr* const eth = is_ethernet ? data : NULL;  // used iff is_ethernet
     const struct ipv6hdr* const ip6 = is_ethernet ? (void*)(eth + 1) : data;
 
+    // Require ethernet dst mac address to be our unicast address.
+    if (is_ethernet && (skb->pkt_type != PACKET_HOST)) return TC_ACT_OK;
+
     // Must be meta-ethernet IPv6 frame
     if (skb->protocol != htons(ETH_P_IPV6)) return TC_ACT_OK;
 
