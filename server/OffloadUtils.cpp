@@ -38,7 +38,7 @@ namespace net {
 
 using std::max;
 
-int hardwareAddressType(const std::string& interface) {
+static int doSIOCGIF(const std::string& interface, int opt) {
     base::unique_fd ufd(socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0));
 
     if (ufd < 0) {
@@ -56,9 +56,19 @@ int hardwareAddressType(const std::string& interface) {
     // match a truncated interface if one were to exist.
     strncpy(ifr.ifr_name, interface.c_str(), sizeof(ifr.ifr_name));
 
-    if (ioctl(ufd, SIOCGIFHWADDR, &ifr, sizeof(ifr))) return -errno;
+    if (ioctl(ufd, opt, &ifr, sizeof(ifr))) return -errno;
 
-    return ifr.ifr_hwaddr.sa_family;
+    if (opt == SIOCGIFHWADDR) return ifr.ifr_hwaddr.sa_family;
+    if (opt == SIOCGIFMTU) return ifr.ifr_mtu;
+    return -EINVAL;
+}
+
+int hardwareAddressType(const std::string& interface) {
+    return doSIOCGIF(interface, SIOCGIFHWADDR);
+}
+
+int deviceMTU(const std::string& interface) {
+    return doSIOCGIF(interface, SIOCGIFMTU);
 }
 
 base::Result<bool> isEthernet(const std::string& interface) {
