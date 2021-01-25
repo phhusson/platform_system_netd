@@ -67,6 +67,7 @@
 #include "NetdClient.h"
 #include "NetdConstants.h"
 #include "NetworkController.h"
+#include "RouteController.h"
 #include "SockDiag.h"
 #include "TestUnsolService.h"
 #include "XfrmController.h"
@@ -105,6 +106,8 @@ using android::net::INetd;
 using android::net::InterfaceConfigurationParcel;
 using android::net::InterfaceController;
 using android::net::MarkMaskParcel;
+using android::net::RULE_PRIORITY_SECURE_VPN;
+using android::net::RULE_PRIORITY_VPN_FALLTHROUGH;
 using android::net::SockDiag;
 using android::net::TetherOffloadRuleParcel;
 using android::net::TetherStatsParcel;
@@ -204,69 +207,6 @@ TEST_F(NetdBinderTest, IsAlive) {
     bool isAlive = false;
     mNetd->isAlive(&isAlive);
     ASSERT_TRUE(isAlive);
-}
-
-static bool iptablesNoSocketAllowRuleExists(const char *chainName){
-    return iptablesRuleExists(IPTABLES_PATH, chainName, NO_SOCKET_ALLOW_RULE) &&
-           iptablesRuleExists(IP6TABLES_PATH, chainName, NO_SOCKET_ALLOW_RULE);
-}
-
-static bool iptablesEspAllowRuleExists(const char *chainName){
-    return iptablesRuleExists(IPTABLES_PATH, chainName, ESP_ALLOW_RULE) &&
-           iptablesRuleExists(IP6TABLES_PATH, chainName, ESP_ALLOW_RULE);
-}
-
-TEST_F(NetdBinderTest, FirewallReplaceUidChain) {
-    SKIP_IF_BPF_SUPPORTED;
-
-    std::string chainName = StringPrintf("netd_binder_test_%u", arc4random_uniform(10000));
-    const int kNumUids = 500;
-    std::vector<int32_t> noUids(0);
-    std::vector<int32_t> uids(kNumUids);
-    for (int i = 0; i < kNumUids; i++) {
-        uids[i] = randomUid();
-    }
-
-    bool ret;
-    {
-        TimedOperation op(StringPrintf("Programming %d-UID allowlist chain", kNumUids));
-        mNetd->firewallReplaceUidChain(chainName, true, uids, &ret);
-    }
-    EXPECT_EQ(true, ret);
-    EXPECT_EQ((int) uids.size() + 9, iptablesRuleLineLength(IPTABLES_PATH, chainName.c_str()));
-    EXPECT_EQ((int) uids.size() + 15, iptablesRuleLineLength(IP6TABLES_PATH, chainName.c_str()));
-    EXPECT_EQ(true, iptablesNoSocketAllowRuleExists(chainName.c_str()));
-    EXPECT_EQ(true, iptablesEspAllowRuleExists(chainName.c_str()));
-    {
-        TimedOperation op("Clearing allowlist chain");
-        mNetd->firewallReplaceUidChain(chainName, false, noUids, &ret);
-    }
-    EXPECT_EQ(true, ret);
-    EXPECT_EQ(5, iptablesRuleLineLength(IPTABLES_PATH, chainName.c_str()));
-    EXPECT_EQ(5, iptablesRuleLineLength(IP6TABLES_PATH, chainName.c_str()));
-
-    {
-        TimedOperation op(StringPrintf("Programming %d-UID denylist chain", kNumUids));
-        mNetd->firewallReplaceUidChain(chainName, false, uids, &ret);
-    }
-    EXPECT_EQ(true, ret);
-    EXPECT_EQ((int) uids.size() + 5, iptablesRuleLineLength(IPTABLES_PATH, chainName.c_str()));
-    EXPECT_EQ((int) uids.size() + 5, iptablesRuleLineLength(IP6TABLES_PATH, chainName.c_str()));
-    EXPECT_EQ(false, iptablesNoSocketAllowRuleExists(chainName.c_str()));
-    EXPECT_EQ(false, iptablesEspAllowRuleExists(chainName.c_str()));
-
-    {
-        TimedOperation op("Clearing denylist chain");
-        mNetd->firewallReplaceUidChain(chainName, false, noUids, &ret);
-    }
-    EXPECT_EQ(true, ret);
-    EXPECT_EQ(5, iptablesRuleLineLength(IPTABLES_PATH, chainName.c_str()));
-    EXPECT_EQ(5, iptablesRuleLineLength(IP6TABLES_PATH, chainName.c_str()));
-
-    // Check that the call fails if iptables returns an error.
-    std::string veryLongStringName = "netd_binder_test_UnacceptablyLongIptablesChainName";
-    mNetd->firewallReplaceUidChain(veryLongStringName, true, noUids, &ret);
-    EXPECT_EQ(false, ret);
 }
 
 TEST_F(NetdBinderTest, IpSecTunnelInterface) {
@@ -568,8 +508,6 @@ TEST_F(NetdBinderTest, NetworkInterfaces) {
 }
 
 TEST_F(NetdBinderTest, NetworkUidRules) {
-    const uint32_t RULE_PRIORITY_SECURE_VPN = 12000;
-
     EXPECT_TRUE(mNetd->networkCreateVpn(TEST_NETID1, true).isOk());
     EXPECT_EQ(EEXIST, mNetd->networkCreateVpn(TEST_NETID1, true).serviceSpecificErrorCode());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
@@ -1454,7 +1392,6 @@ constexpr char BANDWIDTH_INPUT[] = "bw_INPUT";
 constexpr char BANDWIDTH_OUTPUT[] = "bw_OUTPUT";
 constexpr char BANDWIDTH_FORWARD[] = "bw_FORWARD";
 constexpr char BANDWIDTH_NAUGHTY[] = "bw_penalty_box";
-constexpr char BANDWIDTH_NICE[] = "bw_happy_box";
 constexpr char BANDWIDTH_ALERT[] = "bw_global_alert";
 
 // TODO: Move iptablesTargetsExists and listIptablesRuleByTable to the top.
@@ -1547,22 +1484,6 @@ void expectBandwidthGlobalAlertRuleExists(long alertBytes) {
     expectXtQuotaValueEqual(globalAlertName, alertBytes);
 }
 
-void expectBandwidthManipulateSpecialAppRuleExists(const char* chain, const char* target, int uid) {
-    std::string uidRule = StringPrintf("owner UID match %u", uid);
-
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH}) {
-        EXPECT_TRUE(iptablesTargetsExists(binary, 1, FILTER_TABLE, chain, target, uidRule));
-    }
-}
-
-void expectBandwidthManipulateSpecialAppRuleDoesNotExist(const char* chain, int uid) {
-    std::string uidRule = StringPrintf("owner UID match %u", uid);
-
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH}) {
-        EXPECT_FALSE(iptablesRuleExists(binary, chain, uidRule));
-    }
-}
-
 }  // namespace
 
 TEST_F(NetdBinderTest, BandwidthSetRemoveInterfaceQuota) {
@@ -1619,34 +1540,6 @@ TEST_F(NetdBinderTest, BandwidthSetGlobalAlert) {
     status = mNetd->bandwidthSetGlobalAlert(testAlertBytes);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectBandwidthGlobalAlertRuleExists(testAlertBytes);
-}
-
-TEST_F(NetdBinderTest, BandwidthManipulateSpecialApp) {
-    SKIP_IF_BPF_SUPPORTED;
-
-    int32_t uid = randomUid();
-    static const char targetReject[] = "REJECT";
-    static const char targetReturn[] = "RETURN";
-
-    // add NaughtyApp
-    binder::Status status = mNetd->bandwidthAddNaughtyApp(uid);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectBandwidthManipulateSpecialAppRuleExists(BANDWIDTH_NAUGHTY, targetReject, uid);
-
-    // remove NaughtyApp
-    status = mNetd->bandwidthRemoveNaughtyApp(uid);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectBandwidthManipulateSpecialAppRuleDoesNotExist(BANDWIDTH_NAUGHTY, uid);
-
-    // add NiceApp
-    status = mNetd->bandwidthAddNiceApp(uid);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectBandwidthManipulateSpecialAppRuleExists(BANDWIDTH_NICE, targetReturn, uid);
-
-    // remove NiceApp
-    status = mNetd->bandwidthRemoveNiceApp(uid);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectBandwidthManipulateSpecialAppRuleDoesNotExist(BANDWIDTH_NICE, uid);
 }
 
 namespace {
@@ -2296,12 +2189,6 @@ namespace {
 constexpr char FIREWALL_INPUT[] = "fw_INPUT";
 constexpr char FIREWALL_OUTPUT[] = "fw_OUTPUT";
 constexpr char FIREWALL_FORWARD[] = "fw_FORWARD";
-constexpr char FIREWALL_DOZABLE[] = "fw_dozable";
-constexpr char FIREWALL_POWERSAVE[] = "fw_powersave";
-constexpr char FIREWALL_RESTRICTED[] = "fw_restricted";
-constexpr char FIREWALL_STANDBY[] = "fw_standby";
-constexpr char targetReturn[] = "RETURN";
-constexpr char targetDrop[] = "DROP";
 
 void expectFirewallAllowlistMode() {
     static const char dropRule[] = "DROP       all";
@@ -2375,87 +2262,6 @@ void expectFireWallInterfaceRuleAllowDoesNotExist(const std::string& ifname) {
     }
 }
 
-bool iptablesFirewallUidFirstRuleExists(const char* binary, const char* chainName,
-                                        const std::string& expectedTarget,
-                                        const std::string& expectedRule) {
-    std::vector<std::string> rules = listIptablesRuleByTable(binary, FILTER_TABLE, chainName);
-    int firstRuleIndex = 2;
-    if (rules.size() < 4) return false;
-    if (rules[firstRuleIndex].find(expectedTarget) != std::string::npos) {
-        if (rules[firstRuleIndex].find(expectedRule) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool iptablesFirewallUidLastRuleExists(const char* binary, const char* chainName,
-                                       const std::string& expectedTarget,
-                                       const std::string& expectedRule) {
-    std::vector<std::string> rules = listIptablesRuleByTable(binary, FILTER_TABLE, chainName);
-    int lastRuleIndex = rules.size() - 1;
-    if (lastRuleIndex < 0) return false;
-    if (rules[lastRuleIndex].find(expectedTarget) != std::string::npos) {
-        if (rules[lastRuleIndex].find(expectedRule) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void expectFirewallUidFirstRuleExists(const char* chainName, int32_t uid) {
-    std::string uidRule = StringPrintf("owner UID match %u", uid);
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH})
-        EXPECT_TRUE(iptablesFirewallUidFirstRuleExists(binary, chainName, targetReturn, uidRule));
-}
-
-void expectFirewallUidFirstRuleDoesNotExist(const char* chainName, int32_t uid) {
-    std::string uidRule = StringPrintf("owner UID match %u", uid);
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH})
-        EXPECT_FALSE(iptablesFirewallUidFirstRuleExists(binary, chainName, targetReturn, uidRule));
-}
-
-void expectFirewallUidLastRuleExists(const char* chainName, int32_t uid) {
-    std::string uidRule = StringPrintf("owner UID match %u", uid);
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH})
-        EXPECT_TRUE(iptablesFirewallUidLastRuleExists(binary, chainName, targetDrop, uidRule));
-}
-
-void expectFirewallUidLastRuleDoesNotExist(const char* chainName, int32_t uid) {
-    std::string uidRule = StringPrintf("owner UID match %u", uid);
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH})
-        EXPECT_FALSE(iptablesFirewallUidLastRuleExists(binary, chainName, targetDrop, uidRule));
-}
-
-bool iptablesFirewallChildChainsLastRuleExists(const char* binary, const char* chainName) {
-    std::vector<std::string> inputRules =
-            listIptablesRuleByTable(binary, FILTER_TABLE, FIREWALL_INPUT);
-    std::vector<std::string> outputRules =
-            listIptablesRuleByTable(binary, FILTER_TABLE, FIREWALL_OUTPUT);
-    int inputLastRuleIndex = inputRules.size() - 1;
-    int outputLastRuleIndex = outputRules.size() - 1;
-
-    if (inputLastRuleIndex < 0 || outputLastRuleIndex < 0) return false;
-    if (inputRules[inputLastRuleIndex].find(chainName) != std::string::npos) {
-        if (outputRules[outputLastRuleIndex].find(chainName) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void expectFirewallChildChainsLastRuleExists(const char* chainRule) {
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH})
-        EXPECT_TRUE(iptablesFirewallChildChainsLastRuleExists(binary, chainRule));
-}
-
-void expectFirewallChildChainsLastRuleDoesNotExist(const char* chainRule) {
-    for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH}) {
-        EXPECT_FALSE(iptablesRuleExists(binary, FIREWALL_INPUT, chainRule));
-        EXPECT_FALSE(iptablesRuleExists(binary, FIREWALL_OUTPUT, chainRule));
-    }
-}
-
 }  // namespace
 
 TEST_F(NetdBinderTest, FirewallSetFirewallType) {
@@ -2509,130 +2315,6 @@ TEST_F(NetdBinderTest, FirewallSetInterfaceRule) {
     status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
     EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
     expectFirewallDenylistMode();
-}
-
-TEST_F(NetdBinderTest, FirewallSetUidRule) {
-    SKIP_IF_BPF_SUPPORTED;
-
-    int32_t uid = randomUid();
-
-    // Doze allow
-    binder::Status status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_DOZABLE, uid,
-                                                      INetd::FIREWALL_RULE_ALLOW);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleExists(FIREWALL_DOZABLE, uid);
-
-    // Doze deny
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_DOZABLE, uid,
-                                       INetd::FIREWALL_RULE_DENY);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleDoesNotExist(FIREWALL_DOZABLE, uid);
-
-    // Powersave allow
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_POWERSAVE, uid,
-                                       INetd::FIREWALL_RULE_ALLOW);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleExists(FIREWALL_POWERSAVE, uid);
-
-    // Powersave deny
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_POWERSAVE, uid,
-                                       INetd::FIREWALL_RULE_DENY);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleDoesNotExist(FIREWALL_POWERSAVE, uid);
-
-    // Restricted mode allow
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_RESTRICTED, uid,
-                                       INetd::FIREWALL_RULE_ALLOW);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleExists(FIREWALL_RESTRICTED, uid);
-
-    // Restricted mode deny
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_RESTRICTED, uid,
-                                       INetd::FIREWALL_RULE_DENY);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleDoesNotExist(FIREWALL_RESTRICTED, uid);
-
-    // Standby deny
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_STANDBY, uid,
-                                       INetd::FIREWALL_RULE_DENY);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidLastRuleExists(FIREWALL_STANDBY, uid);
-
-    // Standby allow
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_STANDBY, uid,
-                                       INetd::FIREWALL_RULE_ALLOW);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidLastRuleDoesNotExist(FIREWALL_STANDBY, uid);
-
-    // None deny in BLACKLIST
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_NONE, uid, INetd::FIREWALL_RULE_DENY);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidLastRuleExists(FIREWALL_INPUT, uid);
-    expectFirewallUidLastRuleExists(FIREWALL_OUTPUT, uid);
-
-    // None allow in BLACKLIST
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_NONE, uid, INetd::FIREWALL_RULE_ALLOW);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidLastRuleDoesNotExist(FIREWALL_INPUT, uid);
-    expectFirewallUidLastRuleDoesNotExist(FIREWALL_OUTPUT, uid);
-
-    // set firewall type whitelist twice
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_ALLOWLIST);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallAllowlistMode();
-
-    // None allow in WHITELIST
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_NONE, uid, INetd::FIREWALL_RULE_ALLOW);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleExists(FIREWALL_INPUT, uid);
-    expectFirewallUidFirstRuleExists(FIREWALL_OUTPUT, uid);
-
-    // None deny in WHITELIST
-    status = mNetd->firewallSetUidRule(INetd::FIREWALL_CHAIN_NONE, uid, INetd::FIREWALL_RULE_DENY);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallUidFirstRuleDoesNotExist(FIREWALL_INPUT, uid);
-    expectFirewallUidFirstRuleDoesNotExist(FIREWALL_OUTPUT, uid);
-
-    // reset firewall mode to default
-    status = mNetd->firewallSetFirewallType(INetd::FIREWALL_DENYLIST);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallDenylistMode();
-}
-
-TEST_F(NetdBinderTest, FirewallEnableDisableChildChains) {
-    SKIP_IF_BPF_SUPPORTED;
-
-    binder::Status status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_DOZABLE, true);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleExists(FIREWALL_DOZABLE);
-
-    status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_STANDBY, true);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleExists(FIREWALL_STANDBY);
-
-    status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_POWERSAVE, true);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleExists(FIREWALL_POWERSAVE);
-
-    status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_RESTRICTED, true);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleExists(FIREWALL_RESTRICTED);
-
-    status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_DOZABLE, false);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleDoesNotExist(FIREWALL_DOZABLE);
-
-    status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_STANDBY, false);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleDoesNotExist(FIREWALL_STANDBY);
-
-    status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_POWERSAVE, false);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleDoesNotExist(FIREWALL_POWERSAVE);
-
-    status = mNetd->firewallEnableChildChain(INetd::FIREWALL_CHAIN_RESTRICTED, false);
-    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
-    expectFirewallChildChainsLastRuleDoesNotExist(FIREWALL_RESTRICTED);
 }
 
 namespace {
@@ -3097,8 +2779,6 @@ void checkUidsInPermissionMap(std::vector<int32_t>& uids, bool exist) {
 }  // namespace
 
 TEST_F(NetdBinderTest, TestInternetPermission) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     std::vector<int32_t> appUids = {TEST_UID1, TEST_UID2};
 
     mNetd->trafficSetNetPermForUids(INetd::PERMISSION_INTERNET, appUids);
@@ -3344,8 +3024,6 @@ class ScopedUidChange {
     uid_t mStoredUid;
 };
 
-constexpr uint32_t RULE_PRIORITY_VPN_FALLTHROUGH = 21000;
-
 void clearQueue(int tunFd) {
     char buf[4096];
     int ret;
@@ -3568,8 +3246,6 @@ TetherOffloadRuleParcel makeTetherOffloadRule(int inputInterfaceIndex, int outpu
 }  // namespace
 
 TEST_F(NetdBinderTest, TetherOffloadRule) {
-    SKIP_IF_BPF_NOT_SUPPORTED;
-
     // TODO: Perhaps verify invalid interface index once the netd handle the error in methods.
     constexpr uint32_t kIfaceInt = 101;
     constexpr uint32_t kIfaceExt = 102;
@@ -3695,7 +3371,7 @@ static bool tcQdiscExists(const std::string& interface) {
 static bool tcFilterExists(const std::string& interface) {
     std::string command = StringPrintf("tc filter show dev %s ingress", interface.c_str());
     std::vector<std::string> lines = runCommand(command);
-    const std::basic_regex regex("^filter .* bpf .* prog_offload_schedcls_[0-9a-z_]+_tether_.*$");
+    const std::basic_regex regex("^filter .* bpf .* prog_offload_schedcls_tether_.*$");
     for (const auto& line : lines) {
         if (std::regex_match(Trim(line), regex)) return true;
     }
