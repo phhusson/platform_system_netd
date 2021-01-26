@@ -653,7 +653,7 @@ int TetherController::enableNat(const char* intIface, const char* extIface) {
     }
 
     if (firstDownstreamForThisUpstream) startBpf(extIface, DOWNSTREAM);
-    startBpf(intIface, UPSTREAM, extIface);
+    startBpf(intIface, UPSTREAM);
     return 0;
 }
 
@@ -837,8 +837,8 @@ int TetherController::disableNat(const char* intIface, const char* extIface) {
     }
 
     setForwardRules(false, intIface, extIface);
-    stopBpf(intIface, UPSTREAM, extIface);
-    if (!isAnyForwardingEnabledOnUpstream(extIface)) stopBpf(extIface, DOWNSTREAM);
+    stopBpf(intIface);
+    if (!isAnyForwardingEnabledOnUpstream(extIface)) stopBpf(extIface);
     if (!isAnyForwardingPairEnabled()) setDefaults();
     return 0;
 }
@@ -1115,21 +1115,15 @@ Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
     return {};
 }
 
-// UPSTREAM -> iface is internal && extIface is external
-// DOWNSTREAM -> iface is external && extIface is NULL (because there may be more than one)
-void TetherController::startBpf(const char* iface, bool downstream, const char* extIface) {
-    // ignore IPv4 only cases - ie. upstream/downstream to/from v4 only clat interface
-    if (!strncmp(iface, "v4-", 3)) return;
-    if (extIface && !strncmp(extIface, "v4-", 3)) return;
+void TetherController::startBpf(const char* iface, bool downstream) {
     const char* const downStr = downstream ? "DOWNSTREAM" : "UPSTREAM";
-
     int ifIndex = if_nametoindex(iface);
     if (!ifIndex) {
-        ALOGE("Failed to get index for interface %s: %s", iface, strerror(errno));
+        ALOGE("Fail to get index for interface %s", iface);
         return;
     }
 
-    auto isEthernet = net::isEthernet(iface);
+    auto isEthernet = android::net::isEthernet(iface);
     if (!isEthernet.ok()) {
         ALOGE("isEthernet(%s[%d]) failure: %s", iface, ifIndex,
               isEthernet.error().message().c_str());
@@ -1163,70 +1157,13 @@ void TetherController::startBpf(const char* iface, bool downstream, const char* 
               isEthernet.value(), downStr, strerror(-rv));
         return;
     }
-
-    // That's all we need to do for DOWNSTREAM direction (ie. on the upstream/external interface)
-    if (downstream) return;
-
-    int extIfIndex = if_nametoindex(extIface);
-    if (!extIfIndex) {
-        ALOGE("Failed to get index for interface %s: %s", extIface, strerror(errno));
-        return;
-    }
-
-    auto extIsEthernet = net::isEthernet(extIface);
-    if (!extIsEthernet.ok()) {
-        ALOGE("isEthernet(%s[%d]) failure: %s", extIface, extIfIndex,
-              extIsEthernet.error().message().c_str());
-        return;
-    }
-
-    // atm. can only handle a rawip uplink
-    if (extIsEthernet.value()) return;
-
-    TetherUpstream6Key key = {
-            .iif = static_cast<uint32_t>(ifIndex),
-            // TODO: need to fill in interface's mac and /64 subnet
-    };
-
-    TetherUpstream6Value value = {
-            .oif = static_cast<uint32_t>(extIfIndex),
-            // TODO: macHeader needs to be populated for ethernet uplink
-            .pmtu = 1500,
-    };
-
-    Result<void> ret = mBpfUpstream6Map.writeValue(key, value, BPF_ANY);
-    if (!ret.ok()) {
-        ALOGE("mBpfUpstream6Map.writeValue(%d[%s], %d[%s], BPF_ANY) failure: %s", ifIndex, iface,
-              extIfIndex, extIface, strerror(ret.error().code()));
-    }
 }
 
-// extIface is NULL iff downstream
-void TetherController::stopBpf(const char* iface, bool downstream, const char* extIface) {
-    // ignore IPv4 only cases - ie. upstream/downstream to/from v4 only clat interface
-    if (!strncmp(iface, "v4-", 3)) return;
-    if (extIface && !strncmp(extIface, "v4-", 3)) return;
-
+void TetherController::stopBpf(const char* iface) {
     int ifIndex = if_nametoindex(iface);
     if (!ifIndex) {
-        ALOGW("Failed to get index for interface %s: %s", iface, strerror(errno));
-
-        // Sometimes the interface is already gone, and we can't figure out the key (ifindex):
-        // since there should only ever be one IPv6 upstream... just clear the map.
-        if (!downstream) mBpfUpstream6Map.clear();
+        ALOGE("Fail to get index for interface %s", iface);
         return;
-    }
-
-    if (!downstream) {
-        TetherUpstream6Key key = {
-                .iif = static_cast<uint32_t>(ifIndex),
-        };
-
-        Result<void> ret = mBpfUpstream6Map.deleteValue(key);
-        if (!ret.ok()) {
-            ALOGE("mBpfUpstream6Map.deleteValue(%d[%s]) failure: %s", ifIndex, iface,
-                  strerror(ret.error().code()));
-        }
     }
 
     int rv = tcFilterDelDevIngress4Tether(ifIndex);
