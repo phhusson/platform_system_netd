@@ -888,7 +888,7 @@ Result<void> TetherController::addOffloadRule(const TetherOffloadRuleParcel& rul
             .neigh6 = *(const in6_addr*)rule.destination.data(),
     };
 
-    TetherDownstream6Value value = {
+    Tether6Value value = {
             .oif = static_cast<uint32_t>(rule.outputInterfaceIndex),
             .macHeader = hdr,
             .pmtu = static_cast<uint16_t>(rule.pmtu),
@@ -1277,8 +1277,8 @@ void TetherController::dumpBpf(DumpWriter& dw) {
             "BPF downstream ipv6 map: iif(iface) v6addr -> oif(iface) srcmac dstmac ethertype "
             "[pmtu]");
     const auto printDownstream6Map =
-            [&dw](const TetherDownstream6Key& key, const TetherDownstream6Value& value,
-                  const BpfMap<TetherDownstream6Key, TetherDownstream6Value>&) {
+            [&dw](const TetherDownstream6Key& key, const Tether6Value& value,
+                  const BpfMap<TetherDownstream6Key, Tether6Value>&) {
                 char addr[INET6_ADDRSTRLEN];
                 std::string src =
                         l2ToString(value.macHeader.h_source, sizeof(value.macHeader.h_source));
@@ -1305,9 +1305,8 @@ void TetherController::dumpBpf(DumpWriter& dw) {
     dw.decIndent();
 
     dw.println("BPF upstream ipv6 map: iif(iface) -> oif(iface) srcmac dstmac ethertype [pmtu]");
-    const auto printUpstream6Map = [&dw](const TetherUpstream6Key& key,
-                                         const TetherUpstream6Value& value,
-                                         const BpfMap<TetherUpstream6Key, TetherUpstream6Value>&) {
+    const auto printUpstream6Map = [&dw](const TetherUpstream6Key& key, const Tether6Value& value,
+                                         const BpfMap<TetherUpstream6Key, Tether6Value>&) {
         std::string src = l2ToString(value.macHeader.h_source, sizeof(value.macHeader.h_source));
         std::string dst = l2ToString(value.macHeader.h_dest, sizeof(value.macHeader.h_dest));
 
