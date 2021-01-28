@@ -775,7 +775,7 @@ interface INetd {
      * Constant net ID for the "dummy" network.
      *
      * The dummy network is used to blackhole or reject traffic. Any attempt to use it will
-     * fail with ENETUNREACH.
+     * either drop the packets or fail with ENETUNREACH.
      */
     const int DUMMY_NET_ID = 51;
 
