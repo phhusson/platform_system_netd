@@ -771,6 +771,14 @@ interface INetd {
 
     const int LOCAL_NET_ID = 99;
 
+    /**
+     * Constant net ID for the "dummy" network.
+     *
+     * The dummy network is used to blackhole or reject traffic. Any attempt to use it will
+     * fail with ENETUNREACH.
+     */
+    const int DUMMY_NET_ID = 51;
+
     // Route does not specify a next hop
     const String NEXTHOP_NONE = "";
     // Route next hop is unreachable
