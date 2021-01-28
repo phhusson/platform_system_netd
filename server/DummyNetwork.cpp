@@ -26,6 +26,13 @@
 namespace android {
 namespace net {
 
+// The dummy network is used to blackhole or reject traffic.
+// It has an IPv4 and an IPv6 default route that point to a dummy interface
+// which drops packets. It is used for system purposes only. Applications
+// cannot use multinetwork APIs such as Network#bindSocket or
+// android_setsocknetwork to send packets on the dummy network.
+// Any attempt to do so will fail with ENETUNREACH.
+
 const char* DummyNetwork::INTERFACE_NAME = "dummy0";
 
 DummyNetwork::DummyNetwork(unsigned netId) : Network(netId) {

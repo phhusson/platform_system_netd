@@ -86,7 +86,7 @@ public:
     static constexpr int MIN_OEM_ID = 1;
     static constexpr int MAX_OEM_ID = 50;
     static constexpr int LOCAL_NET_ID = INetd::LOCAL_NET_ID;
-    static constexpr int DUMMY_NET_ID = 51;
+    static constexpr int DUMMY_NET_ID = INetd::DUMMY_NET_ID;
 
     // Route mode for modify route
     enum RouteOperation { ROUTE_ADD, ROUTE_UPDATE, ROUTE_REMOVE };
