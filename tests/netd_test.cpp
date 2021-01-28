@@ -209,7 +209,7 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
     rv = tcFilterAddDevIngress6Tether(tunif, bpfFd, /* ethernet */ false, DOWNSTREAM);
     ASSERT_EQ(rv, 0);
 
-    bpf::BpfMap<TetherDownstream6Key, TetherDownstream6Value> bpfDownstream6Map;
+    bpf::BpfMap<TetherDownstream6Key, Tether6Value> bpfDownstream6Map;
     bpf::BpfMap<TetherStatsKey, TetherStatsValue> bpfStatsMap;
     bpf::BpfMap<TetherLimitKey, TetherLimitValue> bpfLimitMap;
 
@@ -243,7 +243,7 @@ TEST(NetdBpfTest, testBpfSkbChangeHeadAboveMTU) {
             .h_proto = htons(ETH_P_IPV6),
     };
 
-    TetherDownstream6Value value = {
+    Tether6Value value = {
             .oif = static_cast<uint32_t>(tapif),
             .macHeader = hdr,
             .pmtu = mtu,
