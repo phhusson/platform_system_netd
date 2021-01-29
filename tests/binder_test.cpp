@@ -209,6 +209,32 @@ TEST_F(NetdBinderTest, IsAlive) {
     ASSERT_TRUE(isAlive);
 }
 
+void testNetworkExistsButCannotConnect(const sp<INetd>& netd, const int netId) {
+    // If this network exists, we should definitely not be able to create it.
+    // Note that this networkCreatePhysical is never allowed to create reserved network IDs, so
+    // this call may fail for other reasons than the network already existing.
+    EXPECT_FALSE(netd->networkCreatePhysical(netId, INetd::PERMISSION_NONE).isOk());
+
+    const sockaddr_in6 sin6 = {.sin6_family = AF_INET6,
+                               .sin6_addr = {{.u6_addr32 = {htonl(0x20010db8), 0, 0, 0}}},
+                               .sin6_port = 53};
+    const int s = socket(AF_INET6, SOCK_DGRAM, 0);
+    ASSERT_NE(-1, s);
+    MarkMaskParcel maskMark;
+    ASSERT_TRUE(netd->getFwmarkForNetwork(netId, &maskMark).isOk());
+    EXPECT_EQ(0, setsockopt(s, SOL_SOCKET, SO_MARK, &maskMark.mark, sizeof(netId)));
+    const int ret = connect(s, (struct sockaddr*)&sin6, sizeof(sin6));
+    const int err = errno;
+    EXPECT_EQ(-1, ret);
+    EXPECT_EQ(ENETUNREACH, err);
+    close(s);
+}
+
+TEST_F(NetdBinderTest, InitialNetworksExist) {
+    testNetworkExistsButCannotConnect(mNetd, INetd::DUMMY_NET_ID);
+    testNetworkExistsButCannotConnect(mNetd, INetd::LOCAL_NET_ID);
+}
+
 TEST_F(NetdBinderTest, IpSecTunnelInterface) {
     const struct TestData {
         const std::string family;
