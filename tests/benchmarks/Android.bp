@@ -13,10 +13,10 @@ cc_benchmark {
     ],
     static_libs: [
         "libnetd_test_dnsresponder_ndk",
-        "dnsresolver_aidl_interface-unstable-ndk_platform",
-        "netd_aidl_interface-cpp", //  system/netd/server/UidRanges.h
-        "netd_aidl_interface-ndk_platform",
-        "netd_event_listener_interface-unstable-ndk_platform",
+        "dnsresolver_aidl_interface-V8-ndk_platform",
+        "netd_aidl_interface-V5-cpp", //  system/netd/server/UidRanges.h
+        "netd_aidl_interface-V5-ndk_platform",
+        "netd_event_listener_interface-V2-ndk_platform",
     ],
     aidl: {
         include_dirs: ["system/netd/server/binder"],
