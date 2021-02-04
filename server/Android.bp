@@ -1,3 +1,17 @@
+java_library {
+    name: "netd_aidl_interface-lateststable-java",
+    sdk_version: "system_current",
+    static_libs: [
+        "netd_aidl_interface-java",
+    ],
+    apex_available: [
+        "//apex_available:platform", // used from services.net
+        "com.android.bluetooth.updatable",
+        "com.android.tethering",
+        "com.android.wifi",
+    ],
+}
+
 aidl_interface {
     name: "netd_aidl_interface",
     local_include_dir: "binder",
@@ -35,6 +49,20 @@ aidl_interface {
         "2",
         "3",
         "4",
+    ],
+}
+
+java_library {
+    name: "netd_event_listener_interface-lateststable-java",
+    sdk_version: "system_current",
+    static_libs: [
+        "netd_event_listener_interface-java",
+    ],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.bluetooth.updatable",
+        "com.android.wifi",
+        "com.android.tethering",
     ],
 }
 
