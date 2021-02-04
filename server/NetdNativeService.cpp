@@ -1254,65 +1254,43 @@ binder::Status NetdNativeService::getFwmarkForNetwork(int32_t netId, MarkMaskPar
     return binder::Status::ok();
 }
 
-binder::Status NetdNativeService::tetherOffloadRuleAdd(const TetherOffloadRuleParcel& rule) {
+// TODO: remark @deprecated in INetd.aidl.
+binder::Status NetdNativeService::tetherOffloadRuleAdd(const TetherOffloadRuleParcel& /* rule */) {
+    // deprecated
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-
-    return asBinderStatus(gCtls->tetherCtrl.addOffloadRule(rule));
+    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
 }
 
-binder::Status NetdNativeService::tetherOffloadRuleRemove(const TetherOffloadRuleParcel& rule) {
+// TODO: remark @deprecated in INetd.aidl.
+binder::Status NetdNativeService::tetherOffloadRuleRemove(
+        const TetherOffloadRuleParcel& /* rule */) {
+    // deprecated
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-
-    return asBinderStatus(gCtls->tetherCtrl.removeOffloadRule(rule));
+    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
 }
 
-namespace {
-
-constexpr const char UNUSED_IFNAME[] = "";
-
-TetherStatsParcel toTetherStatsParcel(const TetherController::TetherOffloadStats& stats) {
-    TetherStatsParcel result;
-    result.iface = UNUSED_IFNAME;
-    result.rxBytes = stats.rxBytes;
-    result.rxPackets = stats.rxPackets;
-    result.txBytes = stats.txBytes;
-    result.txPackets = stats.txPackets;
-    result.ifIndex = stats.ifIndex;
-    return result;
-}
-
-}  // namespace
-
+// TODO: remark @deprecated in INetd.aidl.
 binder::Status NetdNativeService::tetherOffloadGetStats(
-        std::vector<TetherStatsParcel>* tetherStatsParcelVec) {
+        std::vector<TetherStatsParcel>* /* tetherStatsParcelVec */) {
+    // deprecated
     NETD_LOCKING_RPC(gCtls->tetherCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-
-    tetherStatsParcelVec->clear();
-    const auto& statsList = gCtls->tetherCtrl.getTetherOffloadStats();
-    if (!isOk(statsList)) {
-        return asBinderStatus(statsList);
-    }
-    for (const auto& stats : statsList.value()) {
-        tetherStatsParcelVec->push_back(toTetherStatsParcel(stats));
-    }
-    return binder::Status::ok();
+    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
 }
 
-binder::Status NetdNativeService::tetherOffloadSetInterfaceQuota(int ifIndex, int64_t quotaBytes) {
+// TODO: remark @deprecated in INetd.aidl.
+binder::Status NetdNativeService::tetherOffloadSetInterfaceQuota(int /* ifIndex */,
+                                                                 int64_t /* quotaBytes */) {
+    // deprecated
     NETD_LOCKING_RPC(gCtls->tetherCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-    int res = gCtls->tetherCtrl.setTetherOffloadInterfaceQuota(ifIndex, quotaBytes);
-    return statusFromErrcode(res);
+    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
 }
 
+// TODO: remark @deprecated in INetd.aidl.
 binder::Status NetdNativeService::tetherOffloadGetAndClearStats(
-        int ifIndex, android::net::TetherStatsParcel* tetherStats) {
+        int /* ifIndex */, android::net::TetherStatsParcel* /* tetherStats */) {
+    // deprecated
     NETD_LOCKING_RPC(gCtls->tetherCtrl.lock, PERM_NETWORK_STACK, PERM_MAINLINE_NETWORK_STACK);
-    const auto& stats = gCtls->tetherCtrl.getAndClearTetherOffloadStats(ifIndex);
-    if (!stats.ok()) {
-        return asBinderStatus(stats);
-    }
-    *tetherStats = toTetherStatsParcel(stats.value());
-    return binder::Status::ok();
+    return binder::Status::fromExceptionCode(binder::Status::EX_UNSUPPORTED_OPERATION);
 }
 
 }  // namespace net
