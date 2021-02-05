@@ -125,12 +125,12 @@ interface INetd {
     void networkRemoveInterface(int netId, in @utf8InCpp String iface);
 
     /**
-     * Adds the specified UID ranges to the specified network. The network must be a VPN. Traffic
-     * from the UID ranges will be routed through the VPN.
+     * Adds the specified UID ranges to the specified network. The network can be physical or
+     * virtual. Traffic from the UID ranges will be routed to the network by default.
      *
      * @param netId the network ID of the network to add the ranges to.
-     * @param uidRanges a set of non-overlapping, contiguous ranges of UIDs to add. The ranges
-     *        must not overlap with existing ranges routed to this network.
+     * @param uidRanges a set of non-overlapping ranges of UIDs to add. These exact ranges
+     *        must not overlap with existing ranges assigned to this network.
      *
      * @throws ServiceSpecificException in case of failure, with an error code corresponding to the
      *         unix errno.
@@ -138,12 +138,12 @@ interface INetd {
     void networkAddUidRanges(int netId, in UidRangeParcel[] uidRanges);
 
     /**
-     * Adds the specified UID ranges to the specified network. The network must be a VPN. Traffic
-     * from the UID ranges will no longer be routed through the VPN.
+     * Remove the specified UID ranges from the specified network. The network can be physical or
+     * virtual. Traffic from the UID ranges will no longer be routed to the network by default.
      *
      * @param netId the network ID of the network to remove the ranges from.
-     * @param uidRanges a set of non-overlapping, contiguous ranges of UIDs to add. The ranges
-     *        must already be routed to this network.
+     * @param uidRanges a set of non-overlapping ranges of UIDs to remove. These exact ranges
+     *        must already be assigned to this network.
      *
      * @throws ServiceSpecificException in case of failure, with an error code corresponding to the
      *         unix errno.
