@@ -735,12 +735,99 @@ int RouteController::configureDummyNetwork() {
                                       INVALID_UID, INVALID_UID, add);
 }
 
+[[nodiscard]] static int modifyUidExplicitNetworkRule(unsigned netId, uint32_t table,
+                                                      uid_t uidStart, uid_t uidEnd, bool add) {
+    if ((uidStart == INVALID_UID) || (uidEnd == INVALID_UID)) {
+        ALOGE("modifyUidExplicitNetworkRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
+        return -EUSERS;
+    }
+
+    Fwmark fwmark;
+    Fwmark mask;
+
+    fwmark.netId = netId;
+    mask.netId = FWMARK_NET_ID_MASK;
+
+    fwmark.explicitlySelected = true;
+    mask.explicitlySelected = true;
+
+    // Access to this network is controlled by UID rules, not permission bits.
+    fwmark.permission = PERMISSION_NONE;
+    mask.permission = PERMISSION_NONE;
+
+    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE, RULE_PRIORITY_UID_EXPLICIT_NETWORK, table,
+                        fwmark.intValue, mask.intValue, IIF_LOOPBACK, OIF_NONE, uidStart, uidEnd);
+}
+
+[[nodiscard]] static int modifyUidImplicitNetworkRule(unsigned netId, uint32_t table,
+                                                      uid_t uidStart, uid_t uidEnd, bool add) {
+    if ((uidStart == INVALID_UID) || (uidEnd == INVALID_UID)) {
+        ALOGE("modifyUidImplicitNetworkRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
+        return -EUSERS;
+    }
+
+    Fwmark fwmark;
+    Fwmark mask;
+
+    fwmark.netId = netId;
+    mask.netId = FWMARK_NET_ID_MASK;
+
+    fwmark.explicitlySelected = false;
+    mask.explicitlySelected = true;
+
+    // Access to this network is controlled by UID rules, not permission bits.
+    fwmark.permission = PERMISSION_NONE;
+    mask.permission = PERMISSION_NONE;
+
+    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE, RULE_PRIORITY_UID_IMPLICIT_NETWORK, table,
+                        fwmark.intValue, mask.intValue, IIF_LOOPBACK, OIF_NONE, uidStart, uidEnd);
+}
+
+[[nodiscard]] static int modifyUidDefaultNetworkRule(uint32_t table, uid_t uidStart, uid_t uidEnd,
+                                                     bool add) {
+    if ((uidStart == INVALID_UID) || (uidEnd == INVALID_UID)) {
+        ALOGE("modifyUidDefaultNetworkRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
+        return -EUSERS;
+    }
+
+    Fwmark fwmark;
+    Fwmark mask;
+
+    fwmark.netId = NETID_UNSET;
+    mask.netId = FWMARK_NET_ID_MASK;
+
+    // Access to this network is controlled by UID rules, not permission bits.
+    fwmark.permission = PERMISSION_NONE;
+    mask.permission = PERMISSION_NONE;
+
+    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE, RULE_PRIORITY_UID_DEFAULT_NETWORK, table,
+                        fwmark.intValue, mask.intValue, IIF_LOOPBACK, OIF_NONE, uidStart, uidEnd);
+}
+
 /* static */
 int RouteController::modifyPhysicalNetwork(unsigned netId, const char* interface,
-                                           Permission permission, bool add) {
+                                           const UidRanges& uidRanges, Permission permission,
+                                           bool add, bool modifyNonUidBasedRules) {
     uint32_t table = getRouteTableForInterface(interface);
     if (table == RT_TABLE_UNSPEC) {
         return -ESRCH;
+    }
+
+    for (const UidRangeParcel& range : uidRanges.getRanges()) {
+        if (int ret = modifyUidExplicitNetworkRule(netId, table, range.start, range.stop, add)) {
+            return ret;
+        }
+        if (int ret = modifyUidImplicitNetworkRule(netId, table, range.start, range.stop, add)) {
+            return ret;
+        }
+        if (int ret = modifyUidDefaultNetworkRule(table, range.start, range.stop, add)) {
+            return ret;
+        }
+    }
+
+    if (!modifyNonUidBasedRules) {
+        // we are done.
+        return 0;
     }
 
     if (int ret = modifyIncomingPacketMark(netId, interface, permission, add)) {
@@ -1031,8 +1118,10 @@ int RouteController::removeInterfaceFromLocalNetwork(unsigned netId, const char*
 }
 
 int RouteController::addInterfaceToPhysicalNetwork(unsigned netId, const char* interface,
-                                                   Permission permission) {
-    if (int ret = modifyPhysicalNetwork(netId, interface, permission, ACTION_ADD)) {
+                                                   Permission permission,
+                                                   const UidRanges& uidRanges) {
+    if (int ret = modifyPhysicalNetwork(netId, interface, uidRanges, permission, ACTION_ADD,
+                                        MODIFY_NON_UID_BASED_RULES)) {
         return ret;
     }
     maybeModifyQdiscClsact(interface, ACTION_ADD);
@@ -1041,8 +1130,10 @@ int RouteController::addInterfaceToPhysicalNetwork(unsigned netId, const char* i
 }
 
 int RouteController::removeInterfaceFromPhysicalNetwork(unsigned netId, const char* interface,
-                                                        Permission permission) {
-    if (int ret = modifyPhysicalNetwork(netId, interface, permission, ACTION_DEL)) {
+                                                        Permission permission,
+                                                        const UidRanges& uidRanges) {
+    if (int ret = modifyPhysicalNetwork(netId, interface, uidRanges, permission, ACTION_DEL,
+                                        MODIFY_NON_UID_BASED_RULES)) {
         return ret;
     }
     if (int ret = flushRoutes(interface)) {
@@ -1082,11 +1173,14 @@ int RouteController::removeInterfaceFromVirtualNetwork(unsigned netId, const cha
 int RouteController::modifyPhysicalNetworkPermission(unsigned netId, const char* interface,
                                                      Permission oldPermission,
                                                      Permission newPermission) {
+    UidRanges noUidRanges;
     // Add the new rules before deleting the old ones, to avoid race conditions.
-    if (int ret = modifyPhysicalNetwork(netId, interface, newPermission, ACTION_ADD)) {
+    if (int ret = modifyPhysicalNetwork(netId, interface, noUidRanges, newPermission, ACTION_ADD,
+                                        MODIFY_NON_UID_BASED_RULES)) {
         return ret;
     }
-    return modifyPhysicalNetwork(netId, interface, oldPermission, ACTION_DEL);
+    return modifyPhysicalNetwork(netId, interface, noUidRanges, oldPermission, ACTION_DEL,
+                                 MODIFY_NON_UID_BASED_RULES);
 }
 
 int RouteController::addUsersToRejectNonSecureNetworkRule(const UidRanges& uidRanges) {
@@ -1153,6 +1247,18 @@ int RouteController::removeVirtualNetworkFallthrough(unsigned vpnNetId,
                                                      const char* physicalInterface,
                                                      Permission permission) {
     return modifyVpnFallthroughRule(RTM_DELRULE, vpnNetId, physicalInterface, permission);
+}
+
+int RouteController::addUsersToPhysicalNetwork(unsigned netId, const char* interface,
+                                               const UidRanges& uidRanges) {
+    return modifyPhysicalNetwork(netId, interface, uidRanges, PERMISSION_NONE, ACTION_ADD,
+                                 !MODIFY_NON_UID_BASED_RULES);
+}
+
+int RouteController::removeUsersFromPhysicalNetwork(unsigned netId, const char* interface,
+                                                    const UidRanges& uidRanges) {
+    return modifyPhysicalNetwork(netId, interface, uidRanges, PERMISSION_NONE, ACTION_DEL,
+                                 !MODIFY_NON_UID_BASED_RULES);
 }
 
 // Protects sInterfaceToTable.
