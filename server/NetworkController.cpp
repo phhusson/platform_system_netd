@@ -205,13 +205,16 @@ uint32_t NetworkController::getNetworkForDnsLocked(unsigned* netId, uid_t uid) c
     fwmark.protectedFromVpn = true;
     fwmark.permission = PERMISSION_SYSTEM;
 
+    PhysicalNetwork* appDefaultNetwork = getPhysicalNetworkForUserLocked(uid);
+    unsigned defaultNetId = appDefaultNetwork ? appDefaultNetwork->getNetId() : mDefaultNetId;
+
     // Common case: there is no VPN that applies to the user, and the query did not specify a netId.
     // Therefore, it is safe to set the explicit bit on this query and skip all the complex logic
     // below. While this looks like a special case, it is actually the one that handles the vast
     // majority of DNS queries.
     // TODO: untangle this code.
     if (*netId == NETID_UNSET && getVirtualNetworkForUserLocked(uid) == nullptr) {
-        *netId = mDefaultNetId;
+        *netId = defaultNetId;
         fwmark.netId = *netId;
         fwmark.explicitlySelected = true;
         return fwmark.intValue;
@@ -228,7 +231,7 @@ uint32_t NetworkController::getNetworkForDnsLocked(unsigned* netId, uid_t uid) c
         // http://b/29498052
         Network *network = getNetworkLocked(*netId);
         if (network && network->isVirtual() && !resolv_has_nameservers(*netId)) {
-            *netId = mDefaultNetId;
+            *netId = defaultNetId;
         }
     } else {
         // If the user is subject to a VPN and the VPN provides DNS servers, use those servers
@@ -241,7 +244,7 @@ uint32_t NetworkController::getNetworkForDnsLocked(unsigned* netId, uid_t uid) c
         } else {
             // TODO: return an error instead of silently doing the DNS lookup on the wrong network.
             // http://b/27560555
-            *netId = mDefaultNetId;
+            *netId = defaultNetId;
         }
     }
     fwmark.netId = *netId;
@@ -249,17 +252,22 @@ uint32_t NetworkController::getNetworkForDnsLocked(unsigned* netId, uid_t uid) c
 }
 
 // Returns the NetId that a given UID would use if no network is explicitly selected. Specifically,
-// the VPN that applies to the UID if any; otherwise, the default network.
+// the VPN that applies to the UID if any; otherwise, the default network for UID; lastly, the
+// default network.
 unsigned NetworkController::getNetworkForUser(uid_t uid) const {
     ScopedRLock lock(mRWLock);
     if (VirtualNetwork* virtualNetwork = getVirtualNetworkForUserLocked(uid)) {
         return virtualNetwork->getNetId();
     }
+    if (PhysicalNetwork* physicalNetwork = getPhysicalNetworkForUserLocked(uid)) {
+        return physicalNetwork->getNetId();
+    }
     return mDefaultNetId;
 }
 
 // Returns the NetId that will be set when a socket connect()s. This is the bypassable VPN that
-// applies to the user if any; otherwise, the default network.
+// applies to the user if any; otherwise, the default network that applies to user if any; lastly,
+// the default network.
 //
 // In general, we prefer to always set the default network's NetId in connect(), so that if the VPN
 // is a split-tunnel and disappears later, the socket continues working (since the default network's
@@ -272,10 +280,20 @@ unsigned NetworkController::getNetworkForUser(uid_t uid) const {
 // traffic to the default network. But it does mean that if the bypassable VPN goes away (and thus
 // the fallthrough rules also go away), the socket that used to fallthrough to the default network
 // will stop working.
+//
+// Per-app physical default networks behave the same as bypassable VPNs: when a socket is connected
+// on one of these networks, we mark the socket with the netId of the network. This ensures that if
+// the per-app default network changes, sockets established on the previous network are still
+// routed to that network, assuming the network's UID ranges still apply to the UID. While this
+// means that fallthrough to the default network does not work, physical networks not expected
+// ever to be split tunnels.
 unsigned NetworkController::getNetworkForConnectLocked(uid_t uid) const {
     VirtualNetwork* virtualNetwork = getVirtualNetworkForUserLocked(uid);
     if (virtualNetwork && !virtualNetwork->isSecure()) {
         return virtualNetwork->getNetId();
+    }
+    if (PhysicalNetwork* physicalNetwork = getPhysicalNetworkForUserLocked(uid)) {
+        return physicalNetwork->getNetId();
     }
     return mDefaultNetId;
 }
@@ -579,7 +597,7 @@ int isWrongNetworkForUidRanges(unsigned netId, Network* network) {
         ALOGE("no such netId %u", netId);
         return -ENONET;
     }
-    if (!network->isVirtual()) {
+    if (!network->isVirtual() && !network->isPhysical()) {
         ALOGE("cannot add/remove users to/from network %u, type %d", netId, network->getType());
         return -EINVAL;
     }
@@ -756,6 +774,18 @@ VirtualNetwork* NetworkController::getVirtualNetworkForUserLocked(uid_t uid) con
     return nullptr;
 }
 
+PhysicalNetwork* NetworkController::getPhysicalNetworkForUserLocked(uid_t uid) const {
+    for (const auto& [_, network] : mNetworks) {
+        if (network->isPhysical() && network->appliesToUser(uid)) {
+            // Return the first physical network that matches UID.
+            // If there is more than one such network, the behaviour is undefined.
+            // This is a configuration error.
+            return static_cast<PhysicalNetwork*>(network);
+        }
+    }
+    return nullptr;
+}
+
 Permission NetworkController::getPermissionForUserLocked(uid_t uid) const {
     auto iter = mUsers.find(uid);
     if (iter != mUsers.end()) {
@@ -791,7 +821,14 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
             mProtectableUsers.find(uid) == mProtectableUsers.end()) {
         return -EPERM;
     }
+    // If the UID wants to use a physical network and it has a UID range that includes the UID, the
+    // UID has permission to use it regardless of whether the permission bits match.
+    if (network->isPhysical() && network->appliesToUser(uid)) {
+        return 0;
+    }
     // Check whether the UID's permission bits are sufficient to use the network.
+    // Because the permission of the system default network is PERMISSION_NONE(0x0), apps can always
+    // pass the check here when using the system default network.
     Permission networkPermission = static_cast<PhysicalNetwork*>(network)->getPermission();
     return ((userPermission & networkPermission) == networkPermission) ? 0 : -EACCES;
 }
