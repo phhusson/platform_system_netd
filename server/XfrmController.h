@@ -134,6 +134,7 @@ struct XfrmSpInfo : XfrmSaInfo {
     // Address family in XfrmCommonInfo used for template/SA matching, need separate addrFamily
     // for selectors
     int selAddrFamily;  // AF_INET or AF_INET6
+    XfrmDirection direction;
 };
 
 /*
@@ -379,11 +380,9 @@ public:
     static int fillUserSaId(const XfrmCommonInfo& record, xfrm_usersa_id* said);
     static void fillUserTemplate(const XfrmSpInfo& record, xfrm_user_tmpl* tmpl);
 
-    static int fillUserSpInfo(const XfrmSpInfo& record, XfrmDirection direction,
-                              xfrm_userpolicy_info* usersp);
+    static int fillUserSpInfo(const XfrmSpInfo& record, xfrm_userpolicy_info* usersp);
     static int fillNlAttrUserTemplate(const XfrmSpInfo& record, nlattr_user_tmpl* tmpl);
-    static int fillUserPolicyId(const XfrmSpInfo& record, XfrmDirection direction,
-                                xfrm_userpolicy_id* policy_id);
+    static int fillUserPolicyId(const XfrmSpInfo& record, xfrm_userpolicy_id* policy_id);
     static int fillNlAttrXfrmMark(const XfrmCommonInfo& record, nlattr_xfrm_mark* mark);
     static int fillNlAttrXfrmOutputMark(const __u32 underlyingNetId,
                                         nlattr_xfrm_output_mark* output_mark);
@@ -400,11 +399,9 @@ public:
                                                    int32_t xfrmInterfaceId, int32_t msgType);
     static netdutils::Status updateTunnelModeSecurityPolicy(const XfrmSpInfo& record,
                                                             const XfrmSocket& sock,
-                                                            XfrmDirection direction,
                                                             uint16_t msgType);
     static netdutils::Status deleteTunnelModeSecurityPolicy(const XfrmSpInfo& record,
-                                                            const XfrmSocket& sock,
-                                                            XfrmDirection direction);
+                                                            const XfrmSocket& sock);
     static netdutils::Status flushInterfaces();
     static netdutils::Status flushSaDb(const XfrmSocket& s);
     static netdutils::Status flushPolicyDb(const XfrmSocket& s);
