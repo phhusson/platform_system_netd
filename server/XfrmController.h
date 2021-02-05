@@ -107,11 +107,14 @@ struct XfrmEncap {
     uint16_t dstPort;
 };
 
-// minimally sufficient structure to match either an SA or a Policy
-struct XfrmCommonInfo {
+struct XfrmEndpointPair {
     xfrm_address_t dstAddr; // network order
     xfrm_address_t srcAddr;
     int addrFamily;  // AF_INET or AF_INET6
+};
+
+// minimally sufficient structure to match either an SA or a Policy
+struct XfrmCommonInfo : XfrmEndpointPair {
     int transformId; // requestId
     int spi;
     xfrm_mark mark;
@@ -338,6 +341,9 @@ public:
   private:
     static bool isXfrmIntfSupported();
 
+    static netdutils::Status fillXfrmEndpointPair(const std::string& sourceAddress,
+                                                  const std::string& destinationAddress,
+                                                  XfrmEndpointPair* info);
     // helper functions for filling in the XfrmCommonInfo (and XfrmSaInfo) structure
     static netdutils::Status fillXfrmCommonInfo(const std::string& sourceAddress,
                                                 const std::string& destinationAddress, int32_t spi,

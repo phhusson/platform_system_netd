@@ -646,20 +646,17 @@ netdutils::Status XfrmController::ipSecDeleteSecurityAssociation(
     return ret;
 }
 
-netdutils::Status XfrmController::fillXfrmCommonInfo(const std::string& sourceAddress,
-                                                     const std::string& destinationAddress,
-                                                     int32_t spi, int32_t markValue,
-                                                     int32_t markMask, int32_t transformId,
-                                                     int32_t xfrmInterfaceId,
-                                                     XfrmCommonInfo* info) {
+netdutils::Status XfrmController::fillXfrmEndpointPair(const std::string& sourceAddress,
+                                                       const std::string& destinationAddress,
+                                                       XfrmEndpointPair* endpointPair) {
     // Use the addresses to determine the address family and do validation
     xfrm_address_t sourceXfrmAddr{}, destXfrmAddr{};
     StatusOr<int> sourceFamily, destFamily;
     sourceFamily = convertToXfrmAddr(sourceAddress, &sourceXfrmAddr);
     destFamily = convertToXfrmAddr(destinationAddress, &destXfrmAddr);
     if (!isOk(sourceFamily) || !isOk(destFamily)) {
-        return netdutils::statusFromErrno(EINVAL, "Invalid address " + sourceAddress + "/" +
-                                                      destinationAddress);
+        return netdutils::statusFromErrno(
+                EINVAL, "Invalid address " + sourceAddress + "/" + destinationAddress);
     }
 
     if (destFamily.value() == AF_UNSPEC ||
@@ -669,10 +666,24 @@ netdutils::Status XfrmController::fillXfrmCommonInfo(const std::string& sourceAd
         return netdutils::statusFromErrno(EINVAL, "Invalid or mismatched address families");
     }
 
-    info->addrFamily = destFamily.value();
+    endpointPair->addrFamily = destFamily.value();
 
-    info->dstAddr = destXfrmAddr;
-    info->srcAddr = sourceXfrmAddr;
+    endpointPair->dstAddr = destXfrmAddr;
+    endpointPair->srcAddr = sourceXfrmAddr;
+
+    return netdutils::status::ok;
+}
+
+netdutils::Status XfrmController::fillXfrmCommonInfo(const std::string& sourceAddress,
+                                                     const std::string& destinationAddress,
+                                                     int32_t spi, int32_t markValue,
+                                                     int32_t markMask, int32_t transformId,
+                                                     int32_t xfrmInterfaceId,
+                                                     XfrmCommonInfo* info) {
+    Status ret = fillXfrmEndpointPair(sourceAddress, destinationAddress, info);
+    if (!isOk(ret)) {
+        return ret;
+    }
 
     return fillXfrmCommonInfo(spi, markValue, markMask, transformId, xfrmInterfaceId, info);
 }
