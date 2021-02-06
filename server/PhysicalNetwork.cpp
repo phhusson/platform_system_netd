@@ -167,7 +167,7 @@ int PhysicalNetwork::addInterface(const std::string& interface) {
         return 0;
     }
     if (int ret = RouteController::addInterfaceToPhysicalNetwork(mNetId, interface.c_str(),
-                                                                 mPermission)) {
+                                                                 mPermission, mUidRanges)) {
         ALOGE("failed to add interface %s to netId %u", interface.c_str(), mNetId);
         return ret;
     }
@@ -194,7 +194,7 @@ int PhysicalNetwork::removeInterface(const std::string& interface) {
     // to find the interface index in the cache in cases where the interface is already gone
     // (e.g. bt-pan).
     if (int ret = RouteController::removeInterfaceFromPhysicalNetwork(mNetId, interface.c_str(),
-                                                                      mPermission)) {
+                                                                      mPermission, mUidRanges)) {
         ALOGE("failed to remove interface %s from netId %u", interface.c_str(), mNetId);
         return ret;
     }

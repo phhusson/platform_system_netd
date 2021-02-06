@@ -107,6 +107,9 @@ using android::net::InterfaceConfigurationParcel;
 using android::net::InterfaceController;
 using android::net::MarkMaskParcel;
 using android::net::RULE_PRIORITY_SECURE_VPN;
+using android::net::RULE_PRIORITY_UID_DEFAULT_NETWORK;
+using android::net::RULE_PRIORITY_UID_EXPLICIT_NETWORK;
+using android::net::RULE_PRIORITY_UID_IMPLICIT_NETWORK;
 using android::net::RULE_PRIORITY_VPN_FALLTHROUGH;
 using android::net::SockDiag;
 using android::net::TetherOffloadRuleParcel;
@@ -122,6 +125,7 @@ static const char* IP_RULE_V4 = "-4";
 static const char* IP_RULE_V6 = "-6";
 static const int TEST_NETID1 = 65501;
 static const int TEST_NETID2 = 65502;
+static const int TEST_NETID3 = 65503;
 static const int TEST_DUMP_NETID = 65123;
 static const char* DNSMASQ = "dnsmasq";
 
@@ -129,11 +133,16 @@ static const char* DNSMASQ = "dnsmasq";
 // uids.
 static const int TEST_UID1 = 99999;
 static const int TEST_UID2 = 99998;
+static const int TEST_UID3 = 99997;
 
 constexpr int BASE_UID = AID_USER_OFFSET * 5;
 
 static const std::string NO_SOCKET_ALLOW_RULE("! owner UID match 0-4294967294");
 static const std::string ESP_ALLOW_RULE("esp");
+
+static const in6_addr V6_ADDR = {
+        {// 2001:db8:cafe::8888
+         .u6_addr8 = {0x20, 0x01, 0x0d, 0xb8, 0xca, 0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x88}}};
 
 class NetdBinderTest : public ::testing::Test {
   public:
@@ -152,6 +161,7 @@ class NetdBinderTest : public ::testing::Test {
     void TearDown() override {
         mNetd->networkDestroy(TEST_NETID1);
         mNetd->networkDestroy(TEST_NETID2);
+        mNetd->networkDestroy(TEST_NETID3);
         setNetworkForProcess(NETID_UNSET);
         // Restore default network
         if (mStoredDefaultNetwork >= 0) mNetd->networkSetDefault(mStoredDefaultNetwork);
@@ -163,14 +173,17 @@ class NetdBinderTest : public ::testing::Test {
     static void SetUpTestCase() {
         ASSERT_EQ(0, sTun.init());
         ASSERT_EQ(0, sTun2.init());
+        ASSERT_EQ(0, sTun3.init());
         ASSERT_LE(sTun.name().size(), static_cast<size_t>(IFNAMSIZ));
         ASSERT_LE(sTun2.name().size(), static_cast<size_t>(IFNAMSIZ));
+        ASSERT_LE(sTun3.name().size(), static_cast<size_t>(IFNAMSIZ));
     }
 
     static void TearDownTestCase() {
         // Closing the socket removes the interface and IP addresses.
         sTun.destroy();
         sTun2.destroy();
+        sTun3.destroy();
     }
 
     static void fakeRemoteSocketPair(unique_fd* clientSocket, unique_fd* serverSocket,
@@ -179,6 +192,22 @@ class NetdBinderTest : public ::testing::Test {
     void createVpnNetworkWithUid(bool secure, uid_t uid, int vpnNetId = TEST_NETID2,
                                  int fallthroughNetId = TEST_NETID1);
 
+    void createAndSetDefaultNetwork(int netId, const std::string& interface,
+                                    int permission = INetd::PERMISSION_NONE);
+
+    void createPhysicalNetwork(int netId, const std::string& interface,
+                               int permission = INetd::PERMISSION_NONE);
+
+    void createDefaultAndOtherPhysicalNetwork(int defaultNetId, int otherNetId);
+
+    void createVpnAndOtherPhysicalNetwork(int systemDefaultNetId, int otherNetId, int vpnNetId,
+                                          bool secure);
+
+    void createVpnAndAppDefaultNetworkWithUid(int systemDefaultNetId, int appDefaultNetId,
+                                              int vpnNetId, bool secure,
+                                              std::vector<UidRangeParcel>&& appDefaultUidRanges,
+                                              std::vector<UidRangeParcel>&& vpnUidRanges);
+
   protected:
     // Use -1 to represent that default network was not modified because
     // real netId must be an unsigned value.
@@ -186,10 +215,12 @@ class NetdBinderTest : public ::testing::Test {
     sp<INetd> mNetd;
     static TunInterface sTun;
     static TunInterface sTun2;
+    static TunInterface sTun3;
 };
 
 TunInterface NetdBinderTest::sTun;
 TunInterface NetdBinderTest::sTun2;
+TunInterface NetdBinderTest::sTun3;
 
 class TimedOperation : public Stopwatch {
   public:
@@ -541,19 +572,19 @@ TEST_F(NetdBinderTest, NetworkUidRules) {
     std::vector<UidRangeParcel> uidRanges = {makeUidRangeParcel(BASE_UID + 8005, BASE_UID + 8012),
                                              makeUidRangeParcel(BASE_UID + 8090, BASE_UID + 8099)};
     UidRangeParcel otherRange = makeUidRangeParcel(BASE_UID + 8190, BASE_UID + 8299);
-    std::string suffix = StringPrintf("lookup %s ", sTun.name().c_str());
+    std::string action = StringPrintf("lookup %s ", sTun.name().c_str());
 
     EXPECT_TRUE(mNetd->networkAddUidRanges(TEST_NETID1, uidRanges).isOk());
 
-    EXPECT_TRUE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[0], suffix));
-    EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, otherRange, suffix));
+    EXPECT_TRUE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[0], action));
+    EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, otherRange, action));
     EXPECT_TRUE(mNetd->networkRemoveUidRanges(TEST_NETID1, uidRanges).isOk());
-    EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[0], suffix));
+    EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[0], action));
 
     EXPECT_TRUE(mNetd->networkAddUidRanges(TEST_NETID1, uidRanges).isOk());
-    EXPECT_TRUE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[1], suffix));
+    EXPECT_TRUE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[1], action));
     EXPECT_TRUE(mNetd->networkDestroy(TEST_NETID1).isOk());
-    EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[1], suffix));
+    EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_SECURE_VPN, uidRanges[1], action));
 
     EXPECT_EQ(ENONET, mNetd->networkDestroy(TEST_NETID1).serviceSpecificErrorCode());
 }
@@ -3031,12 +3062,62 @@ void NetdBinderTest::createVpnNetworkWithUid(bool secure, uid_t uid, int vpnNetI
     EXPECT_TRUE(mNetd->networkAddRoute(TEST_NETID2, sTun2.name(), "2001:db8::/32", "").isOk());
 }
 
+void NetdBinderTest::createAndSetDefaultNetwork(int netId, const std::string& interface,
+                                                int permission) {
+    // backup current default network.
+    ASSERT_TRUE(mNetd->networkGetDefault(&mStoredDefaultNetwork).isOk());
+
+    EXPECT_TRUE(mNetd->networkCreatePhysical(netId, permission).isOk());
+    EXPECT_TRUE(mNetd->networkAddInterface(netId, interface).isOk());
+    EXPECT_TRUE(mNetd->networkSetDefault(netId).isOk());
+}
+
+void NetdBinderTest::createPhysicalNetwork(int netId, const std::string& interface,
+                                           int permission) {
+    EXPECT_TRUE(mNetd->networkCreatePhysical(netId, permission).isOk());
+    EXPECT_TRUE(mNetd->networkAddInterface(netId, interface).isOk());
+}
+
+// 1. Create a physical network on sTun, and set it as the system default network.
+// 2. Create another physical network on sTun2.
+void NetdBinderTest::createDefaultAndOtherPhysicalNetwork(int defaultNetId, int otherNetId) {
+    createAndSetDefaultNetwork(defaultNetId, sTun.name());
+    EXPECT_TRUE(mNetd->networkAddRoute(defaultNetId, sTun.name(), "::/0", "").isOk());
+
+    createPhysicalNetwork(otherNetId, sTun2.name());
+    EXPECT_TRUE(mNetd->networkAddRoute(otherNetId, sTun2.name(), "::/0", "").isOk());
+}
+
+// 1. Create a system default network and a physical network.
+// 2. Create a VPN on sTun3.
+void NetdBinderTest::createVpnAndOtherPhysicalNetwork(int systemDefaultNetId, int otherNetId,
+                                                      int vpnNetId, bool secure) {
+    createDefaultAndOtherPhysicalNetwork(systemDefaultNetId, otherNetId);
+
+    EXPECT_TRUE(mNetd->networkCreateVpn(vpnNetId, secure).isOk());
+    EXPECT_TRUE(mNetd->networkAddInterface(vpnNetId, sTun3.name()).isOk());
+    EXPECT_TRUE(mNetd->networkAddRoute(vpnNetId, sTun3.name(), "2001:db8::/32", "").isOk());
+}
+
+// 1. Create system default network, a physical network (for per-app default), and a VPN.
+// 2. Add per-app uid ranges and VPN ranges.
+void NetdBinderTest::createVpnAndAppDefaultNetworkWithUid(
+        int systemDefaultNetId, int appDefaultNetId, int vpnNetId, bool secure,
+        std::vector<UidRangeParcel>&& appDefaultUidRanges,
+        std::vector<UidRangeParcel>&& vpnUidRanges) {
+    createVpnAndOtherPhysicalNetwork(systemDefaultNetId, appDefaultNetId, vpnNetId, secure);
+    // add per-app uid ranges.
+    EXPECT_TRUE(mNetd->networkAddUidRanges(appDefaultNetId, appDefaultUidRanges).isOk());
+    // add VPN uid ranges.
+    EXPECT_TRUE(mNetd->networkAddUidRanges(vpnNetId, vpnUidRanges).isOk());
+}
+
 namespace {
 
 class ScopedUidChange {
   public:
     explicit ScopedUidChange(uid_t uid) : mInputUid(uid) {
-        mStoredUid = getuid();
+        mStoredUid = geteuid();
         if (mInputUid == mStoredUid) return;
         EXPECT_TRUE(seteuid(uid) == 0);
     }
@@ -3058,17 +3139,18 @@ void clearQueue(int tunFd) {
     } while (ret > 0);
 }
 
-void checkDataReceived(int udpSocket, int tunFd) {
+void checkDataReceived(int udpSocket, int tunFd, sockaddr* dstAddr, int addrLen) {
     char buf[4096] = {};
     // Clear tunFd's queue before write something because there might be some
     // arbitrary packets in the queue. (e.g. ICMPv6 packet)
     clearQueue(tunFd);
-    EXPECT_EQ(4, write(udpSocket, "foo", sizeof("foo")));
+    EXPECT_EQ(4, sendto(udpSocket, "foo", sizeof("foo"), 0, dstAddr, addrLen));
     // TODO: extract header and verify data
     EXPECT_GT(read(tunFd, buf, sizeof(buf)), 0);
 }
 
-bool sendIPv6PacketFromUid(uid_t uid, const in6_addr& dstAddr, Fwmark* fwmark, int tunFd) {
+bool sendIPv6PacketFromUid(uid_t uid, const in6_addr& dstAddr, Fwmark* fwmark, int tunFd,
+                           bool doConnect = true) {
     ScopedUidChange scopedUidChange(uid);
     unique_fd testSocket(socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0));
     if (testSocket < 0) return false;
@@ -3078,15 +3160,20 @@ bool sendIPv6PacketFromUid(uid_t uid, const in6_addr& dstAddr, Fwmark* fwmark, i
             .sin6_port = 42,
             .sin6_addr = dstAddr,
     };
-    int res = connect(testSocket, (sockaddr*)&dst6, sizeof(dst6));
+    if (doConnect && connect(testSocket, (sockaddr*)&dst6, sizeof(dst6)) == -1) return false;
+
     socklen_t fwmarkLen = sizeof(fwmark->intValue);
     EXPECT_NE(-1, getsockopt(testSocket, SOL_SOCKET, SO_MARK, &(fwmark->intValue), &fwmarkLen));
-    if (res == -1) return false;
 
     char addr[INET6_ADDRSTRLEN];
     inet_ntop(AF_INET6, &dstAddr, addr, INET6_ADDRSTRLEN);
-    SCOPED_TRACE(StringPrintf("sendIPv6PacketFromUid, addr: %s, uid: %u", addr, uid));
-    checkDataReceived(testSocket, tunFd);
+    SCOPED_TRACE(StringPrintf("sendIPv6Packet, addr: %s, uid: %u, doConnect: %s", addr, uid,
+                              doConnect ? "true" : "false"));
+    if (doConnect) {
+        checkDataReceived(testSocket, tunFd, nullptr, 0);
+    } else {
+        checkDataReceived(testSocket, tunFd, (sockaddr*)&dst6, sizeof(dst6));
+    }
     return true;
 }
 
@@ -3219,9 +3306,6 @@ TEST_F(NetdBinderTest, GetFwmarkForNetwork) {
     // Save current default network.
     ASSERT_TRUE(mNetd->networkGetDefault(&mStoredDefaultNetwork).isOk());
 
-    in6_addr v6Addr = {
-            {// 2001:db8:cafe::8888
-             .u6_addr8 = {0x20, 0x01, 0x0d, 0xb8, 0xca, 0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x88}}};
     // Add test physical network 1 and set as default network.
     EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
@@ -3235,8 +3319,8 @@ TEST_F(NetdBinderTest, GetFwmarkForNetwork) {
     MarkMaskParcel maskMarkNet1;
     ASSERT_TRUE(mNetd->getFwmarkForNetwork(TEST_NETID1, &maskMarkNet1).isOk());
 
-    uint32_t fwmarkTcp = createIpv6SocketAndCheckMark(SOCK_STREAM, v6Addr);
-    uint32_t fwmarkUdp = createIpv6SocketAndCheckMark(SOCK_DGRAM, v6Addr);
+    uint32_t fwmarkTcp = createIpv6SocketAndCheckMark(SOCK_STREAM, V6_ADDR);
+    uint32_t fwmarkUdp = createIpv6SocketAndCheckMark(SOCK_DGRAM, V6_ADDR);
     EXPECT_EQ(maskMarkNet1.mark, static_cast<int>(fwmarkTcp & maskMarkNet1.mask));
     EXPECT_EQ(maskMarkNet1.mark, static_cast<int>(fwmarkUdp & maskMarkNet1.mask));
 
@@ -3619,4 +3703,327 @@ TEST_F(NetdBinderTest, TestServiceDump) {
             }
         }
     }
+}
+
+namespace {
+
+// aliases for better reading
+#define SYSTEM_DEFAULT_NETID TEST_NETID1
+#define APP_DEFAULT_NETID TEST_NETID2
+#define VPN_NETID TEST_NETID3
+
+void verifyAppUidRules(std::vector<bool>&& expectedResults, std::vector<UidRangeParcel>& uidRanges,
+                       const std::string& iface) {
+    ASSERT_EQ(expectedResults.size(), uidRanges.size());
+    std::string action = StringPrintf("lookup %s ", iface.c_str());
+
+    for (unsigned long i = 0; i < uidRanges.size(); i++) {
+        EXPECT_EQ(expectedResults[i],
+                  ipRuleExistsForRange(RULE_PRIORITY_UID_EXPLICIT_NETWORK, uidRanges[i], action));
+        EXPECT_EQ(expectedResults[i],
+                  ipRuleExistsForRange(RULE_PRIORITY_UID_IMPLICIT_NETWORK, uidRanges[i], action));
+        EXPECT_EQ(expectedResults[i],
+                  ipRuleExistsForRange(RULE_PRIORITY_UID_DEFAULT_NETWORK, uidRanges[i], action));
+    }
+}
+
+constexpr int IMPLICITLY_SELECT = 0;
+constexpr int EXPLICITLY_SELECT = 1;
+constexpr int UNCONNECTED_SOCKET = 2;
+
+// 1. Send data with the specified UID, on a connected or unconnected socket.
+// 2. Verify if data is received from the specified fd. The fd should belong to a TUN, which has
+//    been assigned to the test network.
+// 3. Verify if fwmark of data is correct.
+// Note: This is a helper function used by per-app default network tests. It does not implement full
+// fwmark logic in netd, and it's currently sufficient. Extension may be required for more
+// complicated tests.
+void expectPacketSentOnNetId(uid_t uid, unsigned netId, int fd, int selectionMode) {
+    Fwmark fwmark;
+    const bool doConnect = (selectionMode != UNCONNECTED_SOCKET);
+    EXPECT_TRUE(sendIPv6PacketFromUid(uid, V6_ADDR, &fwmark, fd, doConnect));
+
+    Fwmark expected;
+    expected.netId = netId;
+    expected.explicitlySelected = (selectionMode == EXPLICITLY_SELECT);
+    if (uid == AID_ROOT && selectionMode == EXPLICITLY_SELECT) {
+        expected.protectedFromVpn = true;
+    } else {
+        expected.protectedFromVpn = false;
+    }
+    if (selectionMode == UNCONNECTED_SOCKET) {
+        expected.permission = PERMISSION_NONE;
+    } else {
+        expected.permission = (uid == AID_ROOT) ? PERMISSION_SYSTEM : PERMISSION_NONE;
+    }
+
+    EXPECT_EQ(expected.intValue, fwmark.intValue);
+}
+
+}  // namespace
+
+// Verify whether IP rules for app default network are correctly configured.
+TEST_F(NetdBinderTest, PerAppDefaultNetwork_VerifyIpRules) {
+    EXPECT_TRUE(mNetd->networkCreatePhysical(APP_DEFAULT_NETID, INetd::PERMISSION_NONE).isOk());
+    EXPECT_TRUE(mNetd->networkAddInterface(APP_DEFAULT_NETID, sTun.name()).isOk());
+
+    std::vector<UidRangeParcel> uidRanges = {makeUidRangeParcel(BASE_UID + 8005, BASE_UID + 8012),
+                                             makeUidRangeParcel(BASE_UID + 8090, BASE_UID + 8099)};
+
+    EXPECT_TRUE(mNetd->networkAddUidRanges(APP_DEFAULT_NETID, uidRanges).isOk());
+    verifyAppUidRules({true, true} /*expectedResults*/, uidRanges, sTun.name());
+    EXPECT_TRUE(mNetd->networkRemoveUidRanges(APP_DEFAULT_NETID, {uidRanges.at(0)}).isOk());
+    verifyAppUidRules({false, true} /*expectedResults*/, uidRanges, sTun.name());
+    EXPECT_TRUE(mNetd->networkRemoveUidRanges(APP_DEFAULT_NETID, {uidRanges.at(1)}).isOk());
+    verifyAppUidRules({false, false} /*expectedResults*/, uidRanges, sTun.name());
+}
+
+// Verify whether packets go through the right network with and without per-app default network.
+// Meaning of Fwmark bits (from Fwmark.h):
+// 0x0000ffff - Network ID
+// 0x00010000 - Explicit mark bit
+// 0x00020000 - VPN protect bit
+// 0x000c0000 - Permission bits
+TEST_F(NetdBinderTest, PerAppDefaultNetwork_ImplicitlySelectNetwork) {
+    createDefaultAndOtherPhysicalNetwork(SYSTEM_DEFAULT_NETID, APP_DEFAULT_NETID);
+
+    int systemDefaultFd = sTun.getFdForTesting();
+    int appDefaultFd = sTun2.getFdForTesting();
+
+    // Connections go through the system default network.
+    expectPacketSentOnNetId(AID_ROOT, SYSTEM_DEFAULT_NETID, systemDefaultFd, IMPLICITLY_SELECT);
+    expectPacketSentOnNetId(TEST_UID1, SYSTEM_DEFAULT_NETID, systemDefaultFd, IMPLICITLY_SELECT);
+
+    // Add TEST_UID1 to per-app default network.
+    EXPECT_TRUE(mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                           {makeUidRangeParcel(TEST_UID1, TEST_UID1)})
+                        .isOk());
+    expectPacketSentOnNetId(AID_ROOT, SYSTEM_DEFAULT_NETID, systemDefaultFd, IMPLICITLY_SELECT);
+    expectPacketSentOnNetId(TEST_UID1, APP_DEFAULT_NETID, appDefaultFd, IMPLICITLY_SELECT);
+
+    // Remove TEST_UID1 from per-app default network.
+    EXPECT_TRUE(mNetd->networkRemoveUidRanges(APP_DEFAULT_NETID,
+                                              {makeUidRangeParcel(TEST_UID1, TEST_UID1)})
+                        .isOk());
+    expectPacketSentOnNetId(AID_ROOT, SYSTEM_DEFAULT_NETID, systemDefaultFd, IMPLICITLY_SELECT);
+    expectPacketSentOnNetId(TEST_UID1, SYSTEM_DEFAULT_NETID, systemDefaultFd, IMPLICITLY_SELECT);
+}
+
+// Verify whether packets go through the right network when app explicitly selects a network.
+TEST_F(NetdBinderTest, PerAppDefaultNetwork_ExplicitlySelectNetwork) {
+    createDefaultAndOtherPhysicalNetwork(SYSTEM_DEFAULT_NETID, APP_DEFAULT_NETID);
+
+    int systemDefaultFd = sTun.getFdForTesting();
+    int appDefaultFd = sTun2.getFdForTesting();
+
+    // Explicitly select the system default network.
+    setNetworkForProcess(SYSTEM_DEFAULT_NETID);
+    // Connections go through the system default network.
+    expectPacketSentOnNetId(AID_ROOT, SYSTEM_DEFAULT_NETID, systemDefaultFd, EXPLICITLY_SELECT);
+    expectPacketSentOnNetId(TEST_UID1, SYSTEM_DEFAULT_NETID, systemDefaultFd, EXPLICITLY_SELECT);
+
+    // Add TEST_UID1 to per-app default network, which won't affect the explicitly selected network.
+    EXPECT_TRUE(mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                           {makeUidRangeParcel(TEST_UID1, TEST_UID1)})
+                        .isOk());
+    expectPacketSentOnNetId(AID_ROOT, SYSTEM_DEFAULT_NETID, systemDefaultFd, EXPLICITLY_SELECT);
+    expectPacketSentOnNetId(TEST_UID1, SYSTEM_DEFAULT_NETID, systemDefaultFd, EXPLICITLY_SELECT);
+
+    // Explicitly select the per-app default network.
+    setNetworkForProcess(APP_DEFAULT_NETID);
+    // Connections go through the per-app default network.
+    expectPacketSentOnNetId(AID_ROOT, APP_DEFAULT_NETID, appDefaultFd, EXPLICITLY_SELECT);
+    expectPacketSentOnNetId(TEST_UID1, APP_DEFAULT_NETID, appDefaultFd, EXPLICITLY_SELECT);
+}
+
+// Verify whether packets go through the right network if app does not implicitly or explicitly
+// select any network.
+TEST_F(NetdBinderTest, PerAppDefaultNetwork_UnconnectedSocket) {
+    createDefaultAndOtherPhysicalNetwork(SYSTEM_DEFAULT_NETID, APP_DEFAULT_NETID);
+
+    int systemDefaultFd = sTun.getFdForTesting();
+    int appDefaultFd = sTun2.getFdForTesting();
+
+    // Connections go through the system default network.
+    expectPacketSentOnNetId(AID_ROOT, NETID_UNSET, systemDefaultFd, UNCONNECTED_SOCKET);
+    expectPacketSentOnNetId(TEST_UID1, NETID_UNSET, systemDefaultFd, UNCONNECTED_SOCKET);
+
+    // Add TEST_UID1 to per-app default network. Traffic should go through the per-app default
+    // network if UID is in range. Otherwise, go through the system default network.
+    EXPECT_TRUE(mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                           {makeUidRangeParcel(TEST_UID1, TEST_UID1)})
+                        .isOk());
+    expectPacketSentOnNetId(AID_ROOT, NETID_UNSET, systemDefaultFd, UNCONNECTED_SOCKET);
+    expectPacketSentOnNetId(TEST_UID1, NETID_UNSET, appDefaultFd, UNCONNECTED_SOCKET);
+}
+
+TEST_F(NetdBinderTest, PerAppDefaultNetwork_PermissionCheck) {
+    createPhysicalNetwork(APP_DEFAULT_NETID, sTun2.name(), INetd::PERMISSION_SYSTEM);
+
+    {  // uid is not in app range. Can not set network for process.
+        ScopedUidChange scopedUidChange(TEST_UID1);
+        EXPECT_EQ(-EACCES, setNetworkForProcess(APP_DEFAULT_NETID));
+    }
+
+    EXPECT_TRUE(mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                           {makeUidRangeParcel(TEST_UID1, TEST_UID1)})
+                        .isOk());
+
+    {  // uid is in app range. Can set network for process.
+        ScopedUidChange scopedUidChange(TEST_UID1);
+        EXPECT_EQ(0, setNetworkForProcess(APP_DEFAULT_NETID));
+    }
+}
+
+class VpnParameterizedTest : public NetdBinderTest, public testing::WithParamInterface<bool> {};
+
+// Exercise secure and bypassable VPN.
+INSTANTIATE_TEST_SUITE_P(PerAppDefaultNetwork, VpnParameterizedTest, testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "SecureVPN" : "BypassableVPN";
+                         });
+
+// Verify per-app default network + VPN.
+TEST_P(VpnParameterizedTest, ImplicitlySelectNetwork) {
+    const bool isSecureVPN = GetParam();
+    createVpnAndAppDefaultNetworkWithUid(
+            SYSTEM_DEFAULT_NETID, APP_DEFAULT_NETID, VPN_NETID, isSecureVPN,
+            {makeUidRangeParcel(TEST_UID2, TEST_UID1)} /* app range */,
+            {makeUidRangeParcel(TEST_UID3, TEST_UID2)} /* VPN range */);
+
+    int systemDefaultFd = sTun.getFdForTesting();
+    int appDefaultFd = sTun2.getFdForTesting();
+    int vpnFd = sTun3.getFdForTesting();
+
+    // uid is neither in app range, nor in VPN range. Traffic goes through system default network.
+    expectPacketSentOnNetId(AID_ROOT, SYSTEM_DEFAULT_NETID, systemDefaultFd, IMPLICITLY_SELECT);
+    // uid is in VPN range, not in app range. Traffic goes through VPN.
+    expectPacketSentOnNetId(TEST_UID3, (isSecureVPN ? SYSTEM_DEFAULT_NETID : VPN_NETID), vpnFd,
+                            IMPLICITLY_SELECT);
+    // uid is in app range, not in VPN range. Traffic goes through per-app default network.
+    expectPacketSentOnNetId(TEST_UID1, APP_DEFAULT_NETID, appDefaultFd, IMPLICITLY_SELECT);
+    // uid is in both app and VPN range. Traffic goes through VPN.
+    expectPacketSentOnNetId(TEST_UID2, (isSecureVPN ? APP_DEFAULT_NETID : VPN_NETID), vpnFd,
+                            IMPLICITLY_SELECT);
+}
+
+class VpnAndSelectNetworkParameterizedTest
+    : public NetdBinderTest,
+      public testing::WithParamInterface<std::tuple<bool, int>> {};
+
+// Exercise the combination of different VPN types and different user selected networks. e.g.
+// secure VPN + select on system default network
+// secure VPN + select on app default network
+// secure VPN + select on VPN
+// bypassable VPN + select on system default network
+// ...
+INSTANTIATE_TEST_SUITE_P(PerAppDefaultNetwork, VpnAndSelectNetworkParameterizedTest,
+                         testing::Combine(testing::Bool(),
+                                          testing::Values(SYSTEM_DEFAULT_NETID, APP_DEFAULT_NETID,
+                                                          VPN_NETID)),
+                         [](const testing::TestParamInfo<std::tuple<bool, int>>& info) {
+                             const std::string vpnType = std::get<0>(info.param)
+                                                                 ? std::string("SecureVPN")
+                                                                 : std::string("BypassableVPN");
+                             std::string selectedNetwork;
+                             switch (std::get<1>(info.param)) {
+                                 case SYSTEM_DEFAULT_NETID:
+                                     selectedNetwork = "SystemDefaultNetwork";
+                                     break;
+                                 case APP_DEFAULT_NETID:
+                                     selectedNetwork = "AppDefaultNetwork";
+                                     break;
+                                 case VPN_NETID:
+                                     selectedNetwork = "VPN";
+                                     break;
+                                 default:
+                                     selectedNetwork = "InvalidParameter";  // Should not happen.
+                             }
+                             return vpnType + "_select" + selectedNetwork;
+                         });
+
+TEST_P(VpnAndSelectNetworkParameterizedTest, ExplicitlySelectNetwork) {
+    bool isSecureVPN;
+    int selectedNetId;
+    std::tie(isSecureVPN, selectedNetId) = GetParam();
+    createVpnAndAppDefaultNetworkWithUid(
+            SYSTEM_DEFAULT_NETID, APP_DEFAULT_NETID, VPN_NETID, isSecureVPN,
+            {makeUidRangeParcel(TEST_UID2, TEST_UID1)} /* app range */,
+            {makeUidRangeParcel(TEST_UID3, TEST_UID2)} /* VPN range */);
+
+    int expectedFd = -1;
+    switch (selectedNetId) {
+        case SYSTEM_DEFAULT_NETID:
+            expectedFd = sTun.getFdForTesting();
+            break;
+        case APP_DEFAULT_NETID:
+            expectedFd = sTun2.getFdForTesting();
+            break;
+        case VPN_NETID:
+            expectedFd = sTun3.getFdForTesting();
+            break;
+        default:
+            GTEST_LOG_(ERROR) << "unexpected netId:" << selectedNetId;  // Should not happen.
+    }
+
+    // In all following permutations, Traffic should go through the specified network if a process
+    // can select network for itself. The fwmark should contain process UID and the explicit select
+    // bit.
+    {  // uid is neither in app range, nor in VPN range. Permission bits, protect bit, and explicit
+       // select bit are all set because of AID_ROOT.
+        ScopedUidChange scopedUidChange(AID_ROOT);
+        EXPECT_EQ(0, setNetworkForProcess(selectedNetId));
+        expectPacketSentOnNetId(AID_ROOT, selectedNetId, expectedFd, EXPLICITLY_SELECT);
+    }
+    {  // uid is in VPN range, not in app range.
+        ScopedUidChange scopedUidChange(TEST_UID3);
+        // Cannot select non-VPN networks when uid is subject to secure VPN.
+        if (isSecureVPN && selectedNetId != VPN_NETID) {
+            EXPECT_EQ(-EPERM, setNetworkForProcess(selectedNetId));
+        } else {
+            EXPECT_EQ(0, setNetworkForProcess(selectedNetId));
+            expectPacketSentOnNetId(TEST_UID3, selectedNetId, expectedFd, EXPLICITLY_SELECT);
+        }
+    }
+    {  // uid is in app range, not in VPN range.
+        ScopedUidChange scopedUidChange(TEST_UID1);
+        // Cannot select the VPN because the VPN does not applies to the UID.
+        if (selectedNetId == VPN_NETID) {
+            EXPECT_EQ(-EPERM, setNetworkForProcess(selectedNetId));
+        } else {
+            EXPECT_EQ(0, setNetworkForProcess(selectedNetId));
+            expectPacketSentOnNetId(TEST_UID1, selectedNetId, expectedFd, EXPLICITLY_SELECT);
+        }
+    }
+    {  // uid is in both app range and VPN range.
+        ScopedUidChange scopedUidChange(TEST_UID2);
+        // Cannot select non-VPN networks when uid is subject to secure VPN.
+        if (isSecureVPN && selectedNetId != VPN_NETID) {
+            EXPECT_EQ(-EPERM, setNetworkForProcess(selectedNetId));
+        } else {
+            EXPECT_EQ(0, setNetworkForProcess(selectedNetId));
+            expectPacketSentOnNetId(TEST_UID2, selectedNetId, expectedFd, EXPLICITLY_SELECT);
+        }
+    }
+}
+
+TEST_P(VpnParameterizedTest, UnconnectedSocket) {
+    const bool isSecureVPN = GetParam();
+    createVpnAndAppDefaultNetworkWithUid(
+            SYSTEM_DEFAULT_NETID, APP_DEFAULT_NETID, VPN_NETID, isSecureVPN,
+            {makeUidRangeParcel(TEST_UID2, TEST_UID1)} /* app range */,
+            {makeUidRangeParcel(TEST_UID3, TEST_UID2)} /* VPN range */);
+
+    int systemDefaultFd = sTun.getFdForTesting();
+    int appDefaultFd = sTun2.getFdForTesting();
+    int vpnFd = sTun3.getFdForTesting();
+
+    // uid is neither in app range, nor in VPN range. Traffic goes through system default network.
+    expectPacketSentOnNetId(AID_ROOT, NETID_UNSET, systemDefaultFd, UNCONNECTED_SOCKET);
+    // uid is in VPN range, not in app range. Traffic goes through VPN.
+    expectPacketSentOnNetId(TEST_UID3, NETID_UNSET, vpnFd, UNCONNECTED_SOCKET);
+    // uid is in app range, not in VPN range. Traffic goes through per-app default network.
+    expectPacketSentOnNetId(TEST_UID1, NETID_UNSET, appDefaultFd, UNCONNECTED_SOCKET);
+    // uid is in both app and VPN range. Traffic goes through VPN.
+    expectPacketSentOnNetId(TEST_UID2, NETID_UNSET, vpnFd, UNCONNECTED_SOCKET);
 }
