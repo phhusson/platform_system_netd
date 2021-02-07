@@ -106,7 +106,11 @@ using android::net::INetd;
 using android::net::InterfaceConfigurationParcel;
 using android::net::InterfaceController;
 using android::net::MarkMaskParcel;
+using android::net::RULE_PRIORITY_DEFAULT_NETWORK;
+using android::net::RULE_PRIORITY_EXPLICIT_NETWORK;
+using android::net::RULE_PRIORITY_PROHIBIT_NON_VPN;
 using android::net::RULE_PRIORITY_SECURE_VPN;
+using android::net::RULE_PRIORITY_TETHERING;
 using android::net::RULE_PRIORITY_UID_DEFAULT_NETWORK;
 using android::net::RULE_PRIORITY_UID_EXPLICIT_NETWORK;
 using android::net::RULE_PRIORITY_UID_IMPLICIT_NETWORK;
@@ -514,7 +518,7 @@ TEST_F(NetdBinderTest, BandwidthEnableDataSaver) {
 static bool ipRuleExistsForRange(const uint32_t priority, const UidRangeParcel& range,
                                  const std::string& action, const char* ipVersion) {
     // Output looks like this:
-    //   "12500:\tfrom all fwmark 0x0/0x20000 iif lo uidrange 1000-2000 prohibit"
+    //   "<priority>:\tfrom all fwmark 0x0/0x20000 iif lo uidrange 1000-2000 prohibit"
     std::vector<std::string> rules = listIpRules(ipVersion);
 
     std::string prefix = StringPrintf("%" PRIu32 ":", priority);
@@ -591,24 +595,22 @@ TEST_F(NetdBinderTest, NetworkUidRules) {
 }
 
 TEST_F(NetdBinderTest, NetworkRejectNonSecureVpn) {
-    constexpr uint32_t RULE_PRIORITY = 12500;
-
     std::vector<UidRangeParcel> uidRanges = {makeUidRangeParcel(BASE_UID + 150, BASE_UID + 224),
                                              makeUidRangeParcel(BASE_UID + 226, BASE_UID + 300)};
     // Make sure no rules existed before calling commands.
     for (auto const& range : uidRanges) {
-        EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY, range, "prohibit"));
+        EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_PROHIBIT_NON_VPN, range, "prohibit"));
     }
     // Create two valid rules.
     ASSERT_TRUE(mNetd->networkRejectNonSecureVpn(true, uidRanges).isOk());
     for (auto const& range : uidRanges) {
-        EXPECT_TRUE(ipRuleExistsForRange(RULE_PRIORITY, range, "prohibit"));
+        EXPECT_TRUE(ipRuleExistsForRange(RULE_PRIORITY_PROHIBIT_NON_VPN, range, "prohibit"));
     }
 
     // Remove the rules.
     ASSERT_TRUE(mNetd->networkRejectNonSecureVpn(false, uidRanges).isOk());
     for (auto const& range : uidRanges) {
-        EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY, range, "prohibit"));
+        EXPECT_FALSE(ipRuleExistsForRange(RULE_PRIORITY_PROHIBIT_NON_VPN, range, "prohibit"));
     }
 
     // Fail to remove the rules a second time after they are already deleted.
@@ -1358,7 +1360,8 @@ bool ipRuleIpfwdExists(const char* ipVersion, const std::string& ipfwdRule) {
 }
 
 void expectIpfwdRuleExists(const char* fromIf, const char* toIf) {
-    std::string ipfwdRule = StringPrintf("18000:\tfrom all iif %s lookup %s ", fromIf, toIf);
+    std::string ipfwdRule =
+            StringPrintf("%u:\tfrom all iif %s lookup %s ", RULE_PRIORITY_TETHERING, fromIf, toIf);
 
     for (const auto& ipVersion : {IP_RULE_V4, IP_RULE_V6}) {
         EXPECT_TRUE(ipRuleIpfwdExists(ipVersion, ipfwdRule));
@@ -1366,7 +1369,8 @@ void expectIpfwdRuleExists(const char* fromIf, const char* toIf) {
 }
 
 void expectIpfwdRuleNotExists(const char* fromIf, const char* toIf) {
-    std::string ipfwdRule = StringPrintf("18000:\tfrom all iif %s lookup %s ", fromIf, toIf);
+    std::string ipfwdRule =
+            StringPrintf("%u:\tfrom all iif %s lookup %s ", RULE_PRIORITY_TETHERING, fromIf, toIf);
 
     for (const auto& ipVersion : {IP_RULE_V4, IP_RULE_V6}) {
         EXPECT_FALSE(ipRuleIpfwdExists(ipVersion, ipfwdRule));
@@ -1663,7 +1667,8 @@ bool ipRuleExists(const char* ipVersion, const std::string& ipRule) {
 
 void expectNetworkDefaultIpRuleExists(const char* ifName) {
     std::string networkDefaultRule =
-            StringPrintf("22000:\tfrom all fwmark 0x0/0xffff iif lo lookup %s", ifName);
+            StringPrintf("%u:\tfrom all fwmark 0x0/0xffff iif lo lookup %s",
+                         RULE_PRIORITY_DEFAULT_NETWORK, ifName);
 
     for (const auto& ipVersion : {IP_RULE_V4, IP_RULE_V6}) {
         EXPECT_TRUE(ipRuleExists(ipVersion, networkDefaultRule));
@@ -1671,7 +1676,8 @@ void expectNetworkDefaultIpRuleExists(const char* ifName) {
 }
 
 void expectNetworkDefaultIpRuleDoesNotExist() {
-    static const char networkDefaultRule[] = "22000:\tfrom all fwmark 0x0/0xffff iif lo";
+    std::string networkDefaultRule =
+            StringPrintf("%u:\tfrom all fwmark 0x0/0xffff iif lo", RULE_PRIORITY_DEFAULT_NETWORK);
 
     for (const auto& ipVersion : {IP_RULE_V4, IP_RULE_V6}) {
         EXPECT_FALSE(ipRuleExists(ipVersion, networkDefaultRule));
@@ -1682,16 +1688,19 @@ void expectNetworkPermissionIpRuleExists(const char* ifName, int permission) {
     std::string networkPermissionRule = "";
     switch (permission) {
         case INetd::PERMISSION_NONE:
-            networkPermissionRule = StringPrintf(
-                    "13000:\tfrom all fwmark 0x1ffdd/0x1ffff iif lo lookup %s", ifName);
+            networkPermissionRule =
+                    StringPrintf("%u:\tfrom all fwmark 0x1ffdd/0x1ffff iif lo lookup %s",
+                                 RULE_PRIORITY_EXPLICIT_NETWORK, ifName);
             break;
         case INetd::PERMISSION_NETWORK:
-            networkPermissionRule = StringPrintf(
-                    "13000:\tfrom all fwmark 0x5ffdd/0x5ffff iif lo lookup %s", ifName);
+            networkPermissionRule =
+                    StringPrintf("%u:\tfrom all fwmark 0x5ffdd/0x5ffff iif lo lookup %s",
+                                 RULE_PRIORITY_EXPLICIT_NETWORK, ifName);
             break;
         case INetd::PERMISSION_SYSTEM:
-            networkPermissionRule = StringPrintf(
-                    "13000:\tfrom all fwmark 0xdffdd/0xdffff iif lo lookup %s", ifName);
+            networkPermissionRule =
+                    StringPrintf("%u:\tfrom all fwmark 0xdffdd/0xdffff iif lo lookup %s",
+                                 RULE_PRIORITY_EXPLICIT_NETWORK, ifName);
             break;
     }
 
