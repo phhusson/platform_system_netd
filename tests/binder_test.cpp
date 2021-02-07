@@ -251,9 +251,10 @@ void testNetworkExistsButCannotConnect(const sp<INetd>& netd, const int netId) {
                                .sin6_port = 53};
     const int s = socket(AF_INET6, SOCK_DGRAM, 0);
     ASSERT_NE(-1, s);
-    MarkMaskParcel maskMark;
-    ASSERT_TRUE(netd->getFwmarkForNetwork(netId, &maskMark).isOk());
-    EXPECT_EQ(0, setsockopt(s, SOL_SOCKET, SO_MARK, &maskMark.mark, sizeof(netId)));
+    Fwmark fwmark;
+    fwmark.explicitlySelected = true;
+    fwmark.netId = netId;
+    EXPECT_EQ(0, setsockopt(s, SOL_SOCKET, SO_MARK, &fwmark.intValue, sizeof(fwmark.intValue)));
     const int ret = connect(s, (struct sockaddr*)&sin6, sizeof(sin6));
     const int err = errno;
     EXPECT_EQ(-1, ret);
