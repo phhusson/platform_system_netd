@@ -10,6 +10,7 @@ package {
 java_library {
     name: "netd_aidl_interface-lateststable-java",
     sdk_version: "system_current",
+    min_sdk_version: "29",
     static_libs: [
         "netd_aidl_interface-V5-java",
     ],
