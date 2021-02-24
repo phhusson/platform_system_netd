@@ -40,7 +40,15 @@ public:
     void add(const UidRanges& other);
     void remove(const UidRanges& other);
 
+    // check if 'mRanges' has uid overlap between elements.
+    bool overlapsSelf() const;
+    // check if this object has uid overlap with the input object.
+    bool overlaps(const UidRanges& other) const;
+
   private:
+    // a utility to check if two UidRangeParcels have uid overlap.
+    bool isOverlapped(const UidRangeParcel& r1, const UidRangeParcel& r2) const;
+
     std::vector<UidRangeParcel> mRanges;
 };
 
