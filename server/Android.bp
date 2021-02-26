@@ -66,6 +66,7 @@ aidl_interface {
 java_library {
     name: "netd_event_listener_interface-lateststable-java",
     sdk_version: "system_current",
+    min_sdk_version: "29",
     static_libs: [
         "netd_event_listener_interface-V1-java",
     ],
