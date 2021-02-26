@@ -3356,7 +3356,8 @@ TetherOffloadRuleParcel makeTetherOffloadRule(int inputInterfaceIndex, int outpu
 
 }  // namespace
 
-TEST_F(NetdBinderTest, TetherOffloadRule) {
+// TODO: probably remove the test because TetherOffload* binder calls are deprecated.
+TEST_F(NetdBinderTest, DISABLED_TetherOffloadRule) {
     // TODO: Perhaps verify invalid interface index once the netd handle the error in methods.
     constexpr uint32_t kIfaceInt = 101;
     constexpr uint32_t kIfaceExt = 102;
@@ -3489,7 +3490,8 @@ static bool tcFilterExists(const std::string& interface) {
     return false;
 }
 
-TEST_F(NetdBinderTest, TetherOffloadForwarding) {
+// TODO: probably remove the test because TetherOffload* binder calls are deprecated.
+TEST_F(NetdBinderTest, DISABLED_TetherOffloadForwarding) {
     SKIP_IF_EXTENDED_BPF_NOT_SUPPORTED;
 
     constexpr const char* kDownstreamPrefix = "2001:db8:2::/64";
@@ -3704,6 +3706,40 @@ TEST_F(NetdBinderTest, TestServiceDump) {
             }
         }
     }
+}
+
+TEST_F(NetdBinderTest, DeprecatedTetherOffloadRuleAdd) {
+    TetherOffloadRuleParcel emptyRule;
+    auto status = mNetd->tetherOffloadRuleAdd(emptyRule);
+    ASSERT_FALSE(status.isOk());
+    ASSERT_EQ(status.exceptionCode(), binder::Status::EX_UNSUPPORTED_OPERATION);
+}
+
+TEST_F(NetdBinderTest, DeprecatedTetherOffloadRuleRemove) {
+    TetherOffloadRuleParcel emptyRule;
+    auto status = mNetd->tetherOffloadRuleRemove(emptyRule);
+    ASSERT_FALSE(status.isOk());
+    ASSERT_EQ(status.exceptionCode(), binder::Status::EX_UNSUPPORTED_OPERATION);
+}
+
+TEST_F(NetdBinderTest, DeprecatedTetherOffloadGetStats) {
+    std::vector<TetherStatsParcel> tetherStatsList;
+    auto status = mNetd->tetherOffloadGetStats(&tetherStatsList);
+    ASSERT_FALSE(status.isOk());
+    ASSERT_EQ(status.exceptionCode(), binder::Status::EX_UNSUPPORTED_OPERATION);
+}
+
+TEST_F(NetdBinderTest, DeprecatedTetherOffloadSetInterfaceQuota) {
+    auto status = mNetd->tetherOffloadSetInterfaceQuota(0 /* ifIndex */, 0 /* quotaBytes */);
+    ASSERT_FALSE(status.isOk());
+    ASSERT_EQ(status.exceptionCode(), binder::Status::EX_UNSUPPORTED_OPERATION);
+}
+
+TEST_F(NetdBinderTest, DeprecatedTetherOffloadGetAndClearStats) {
+    TetherStatsParcel tetherStats;
+    auto status = mNetd->tetherOffloadGetAndClearStats(0 /* ifIndex */, &tetherStats);
+    ASSERT_FALSE(status.isOk());
+    ASSERT_EQ(status.exceptionCode(), binder::Status::EX_UNSUPPORTED_OPERATION);
 }
 
 namespace {
