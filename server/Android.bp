@@ -22,6 +22,35 @@ java_library {
     ],
 }
 
+cc_library_static {
+    name: "netd_event_listener_interface-lateststable-ndk_platform",
+    whole_static_libs: [
+        "netd_event_listener_interface-V1-ndk_platform",
+    ],
+    apex_available: [
+        "com.android.resolv",
+    ],
+    min_sdk_version: "29",
+}
+
+cc_library_static {
+    name: "netd_aidl_interface-lateststable-ndk_platform",
+    whole_static_libs: [
+        "netd_aidl_interface-V5-ndk_platform",
+    ],
+    apex_available: [
+        "com.android.resolv",
+    ],
+    min_sdk_version: "29",
+}
+
+cc_library_static {
+    name: "netd_aidl_interface-lateststable-cpp",
+    whole_static_libs: [
+        "netd_aidl_interface-V5-cpp",
+    ],
+}
+
 aidl_interface {
     name: "netd_aidl_interface",
     local_include_dir: "binder",
