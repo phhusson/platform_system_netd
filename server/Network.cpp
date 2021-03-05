@@ -92,8 +92,25 @@ bool Network::appliesToUser(uid_t uid) const {
     return mUidRanges.hasUid(uid);
 }
 
+bool Network::hasInvalidUidRanges(const UidRanges& uidRanges) const {
+    if (uidRanges.overlapsSelf()) {
+        ALOGE("uid range %s overlaps self", uidRanges.toString().c_str());
+        return true;
+    }
+
+    if (uidRanges.overlaps(mUidRanges)) {
+        ALOGE("uid range %s overlaps %s", uidRanges.toString().c_str(),
+              mUidRanges.toString().c_str());
+        return true;
+    }
+    return false;
+}
+
 int Network::addUsers(const UidRanges& uidRanges) {
-    // TODO: have a checker ensuring uidRanges does not overlap with itself or the existing one.
+    if (hasInvalidUidRanges(uidRanges)) {
+        return -EINVAL;
+    }
+
     for (const std::string& interface : mInterfaces) {
         int ret;
         if (isVirtual()) {
