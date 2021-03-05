@@ -3808,6 +3808,49 @@ void expectPacketSentOnNetId(uid_t uid, unsigned netId, int fd, int selectionMod
 
 }  // namespace
 
+// Verify whether API reject overlapped UID ranges
+TEST_F(NetdBinderTest, PerAppDefaultNetwork_OverlappedUidRanges) {
+    EXPECT_TRUE(mNetd->networkCreatePhysical(APP_DEFAULT_NETID, INetd::PERMISSION_NONE).isOk());
+    EXPECT_TRUE(mNetd->networkAddInterface(APP_DEFAULT_NETID, sTun.name()).isOk());
+
+    std::vector<UidRangeParcel> uidRanges = {makeUidRangeParcel(BASE_UID + 1, BASE_UID + 1),
+                                             makeUidRangeParcel(BASE_UID + 10, BASE_UID + 12)};
+    EXPECT_TRUE(mNetd->networkAddUidRanges(APP_DEFAULT_NETID, uidRanges).isOk());
+
+    binder::Status status;
+    status = mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                        {makeUidRangeParcel(BASE_UID + 1, BASE_UID + 1)});
+    EXPECT_FALSE(status.isOk());
+    EXPECT_EQ(EINVAL, status.serviceSpecificErrorCode());
+
+    status = mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                        {makeUidRangeParcel(BASE_UID + 9, BASE_UID + 10)});
+    EXPECT_FALSE(status.isOk());
+    EXPECT_EQ(EINVAL, status.serviceSpecificErrorCode());
+
+    status = mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                        {makeUidRangeParcel(BASE_UID + 11, BASE_UID + 11)});
+    EXPECT_FALSE(status.isOk());
+    EXPECT_EQ(EINVAL, status.serviceSpecificErrorCode());
+
+    status = mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                        {makeUidRangeParcel(BASE_UID + 12, BASE_UID + 13)});
+    EXPECT_FALSE(status.isOk());
+    EXPECT_EQ(EINVAL, status.serviceSpecificErrorCode());
+
+    status = mNetd->networkAddUidRanges(APP_DEFAULT_NETID,
+                                        {makeUidRangeParcel(BASE_UID + 9, BASE_UID + 13)});
+    EXPECT_FALSE(status.isOk());
+    EXPECT_EQ(EINVAL, status.serviceSpecificErrorCode());
+
+    std::vector<UidRangeParcel> selfOverlappedUidRanges = {
+            makeUidRangeParcel(BASE_UID + 20, BASE_UID + 20),
+            makeUidRangeParcel(BASE_UID + 20, BASE_UID + 21)};
+    status = mNetd->networkAddUidRanges(APP_DEFAULT_NETID, selfOverlappedUidRanges);
+    EXPECT_FALSE(status.isOk());
+    EXPECT_EQ(EINVAL, status.serviceSpecificErrorCode());
+}
+
 // Verify whether IP rules for app default network are correctly configured.
 TEST_F(NetdBinderTest, PerAppDefaultNetwork_VerifyIpRules) {
     EXPECT_TRUE(mNetd->networkCreatePhysical(APP_DEFAULT_NETID, INetd::PERMISSION_NONE).isOk());
