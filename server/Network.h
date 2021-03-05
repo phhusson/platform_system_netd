@@ -71,6 +71,8 @@ private:
         REMOVE,
         ADD,
     };
+
+    bool hasInvalidUidRanges(const UidRanges& uidRanges) const;
 };
 
 }  // namespace android::net
