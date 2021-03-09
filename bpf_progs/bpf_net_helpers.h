@@ -26,6 +26,9 @@
 static uint64_t (*bpf_get_socket_cookie)(struct __sk_buff* skb) = (void*)BPF_FUNC_get_socket_cookie;
 
 static uint32_t (*bpf_get_socket_uid)(struct __sk_buff* skb) = (void*)BPF_FUNC_get_socket_uid;
+
+static int (*bpf_skb_pull_data)(struct __sk_buff* skb, __u32 len) = (void*)BPF_FUNC_skb_pull_data;
+
 static int (*bpf_skb_load_bytes)(struct __sk_buff* skb, int off, void* to,
                                  int len) = (void*)BPF_FUNC_skb_load_bytes;
 
@@ -44,6 +47,8 @@ static int (*bpf_l3_csum_replace)(struct __sk_buff* skb, __u32 offset, __u64 fro
 static int (*bpf_l4_csum_replace)(struct __sk_buff* skb, __u32 offset, __u64 from, __u64 to,
                                   __u64 flags) = (void*)BPF_FUNC_l4_csum_replace;
 static int (*bpf_redirect)(__u32 ifindex, __u64 flags) = (void*)BPF_FUNC_redirect;
+static int (*bpf_redirect_map)(const struct bpf_map_def* map, __u32 key,
+                               __u64 flags) = (void*)BPF_FUNC_redirect_map;
 
 static int (*bpf_skb_change_head)(struct __sk_buff* skb, __u32 head_room,
                                   __u64 flags) = (void*)BPF_FUNC_skb_change_head;
