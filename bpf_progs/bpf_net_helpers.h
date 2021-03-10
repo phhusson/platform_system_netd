@@ -66,4 +66,10 @@ static inline __always_inline __unused bool is_received_skb(struct __sk_buff* sk
            skb->pkt_type == PACKET_MULTICAST;
 }
 
+// try to make the first 'len' header bytes readable via direct packet access
+static inline __always_inline void try_make_readable(struct __sk_buff* skb, int len) {
+    if (len > skb->len) len = skb->len;
+    if (skb->data_end - skb->data < len) bpf_skb_pull_data(skb, len);
+}
+
 #endif  // NETDBPF_BPF_NET_HELPERS_H
