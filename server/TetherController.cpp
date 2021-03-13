@@ -625,8 +625,7 @@ int TetherController::enableNat(const char* intIface, const char* extIface) {
     }
 
     // add this if we are the first enabled nat for this upstream
-    bool firstDownstreamForThisUpstream = !isAnyForwardingEnabledOnUpstream(extIface);
-    if (firstDownstreamForThisUpstream) {
+    if (!isAnyForwardingEnabledOnUpstream(extIface)) {
         std::vector<std::string> v4Cmds = {
             "*nat",
             StringPrintf("-A %s -o %s -j MASQUERADE", LOCAL_NAT_POSTROUTING, extIface),
@@ -652,8 +651,6 @@ int TetherController::enableNat(const char* intIface, const char* extIface) {
         return -ENODEV;
     }
 
-    if (firstDownstreamForThisUpstream) startBpf(extIface, DOWNSTREAM);
-    startBpf(intIface, UPSTREAM);
     return 0;
 }
 
@@ -837,8 +834,6 @@ int TetherController::disableNat(const char* intIface, const char* extIface) {
     }
 
     setForwardRules(false, intIface, extIface);
-    stopBpf(intIface);
-    if (!isAnyForwardingEnabledOnUpstream(extIface)) stopBpf(extIface);
     if (!isAnyForwardingPairEnabled()) setDefaults();
     return 0;
 }
@@ -1113,68 +1108,6 @@ Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
     }
 
     return {};
-}
-
-void TetherController::startBpf(const char* iface, bool downstream) {
-    const char* const downStr = downstream ? "DOWNSTREAM" : "UPSTREAM";
-    int ifIndex = if_nametoindex(iface);
-    if (!ifIndex) {
-        ALOGE("Fail to get index for interface %s", iface);
-        return;
-    }
-
-    auto isEthernet = android::net::isEthernet(iface);
-    if (!isEthernet.ok()) {
-        ALOGE("isEthernet(%s[%d]) failure: %s", iface, ifIndex,
-              isEthernet.error().message().c_str());
-        return;
-    }
-
-    int rv = getTether6TcProgFd(isEthernet.value(), downstream);
-    if (rv < 0) {
-        ALOGE("getTether6TcProgFd(%d, %s) failure: %s", isEthernet.value(), downStr, strerror(-rv));
-        return;
-    }
-    unique_fd tether6ProgFd(rv);
-
-    rv = getTether4TcProgFd(isEthernet.value(), downstream);
-    if (rv < 0) {
-        ALOGE("getTether4TcProgFd(%d, %s) failure: %s", isEthernet.value(), downStr, strerror(-rv));
-        return;
-    }
-    unique_fd tether4ProgFd(rv);
-
-    rv = tcFilterAddDevIngress6Tether(ifIndex, tether6ProgFd, isEthernet.value(), downstream);
-    if (rv) {
-        ALOGE("tcFilterAddDevIngress6Tether(%d[%s], %d, %s) failure: %s", ifIndex, iface,
-              isEthernet.value(), downStr, strerror(-rv));
-        return;
-    }
-
-    rv = tcFilterAddDevIngress4Tether(ifIndex, tether4ProgFd, isEthernet.value(), downstream);
-    if (rv) {
-        ALOGE("tcFilterAddDevIngress4Tether(%d[%s], %d, %s) failure: %s", ifIndex, iface,
-              isEthernet.value(), downStr, strerror(-rv));
-        return;
-    }
-}
-
-void TetherController::stopBpf(const char* iface) {
-    int ifIndex = if_nametoindex(iface);
-    if (!ifIndex) {
-        ALOGE("Fail to get index for interface %s", iface);
-        return;
-    }
-
-    int rv = tcFilterDelDevIngress4Tether(ifIndex);
-    if (rv < 0) {
-        ALOGE("tcFilterDelDevIngress4Tether(%d[%s]) failure: %s", ifIndex, iface, strerror(-rv));
-    }
-
-    rv = tcFilterDelDevIngress6Tether(ifIndex);
-    if (rv < 0) {
-        ALOGE("tcFilterDelDevIngress6Tether(%d[%s]) failure: %s", ifIndex, iface, strerror(-rv));
-    }
 }
 
 int TetherController::setTetherOffloadInterfaceQuota(int ifIndex, int64_t maxBytes) {
