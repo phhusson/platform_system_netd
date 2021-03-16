@@ -176,7 +176,6 @@ class TetherController {
 
     void dump(netdutils::DumpWriter& dw);
     void dumpIfaces(netdutils::DumpWriter& dw);
-    void dumpBpf(netdutils::DumpWriter& dw);
 
   private:
     bool setIpFwdEnabled();
