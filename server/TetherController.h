@@ -190,7 +190,6 @@ class TetherController {
     int setForwardRules(bool set, const char *intIface, const char *extIface);
     int setTetherCountingRules(bool add, const char *intIface, const char *extIface);
 
-    base::Result<void> setBpfLimit(uint32_t ifIndex, uint64_t limit);
     void initMaps();
 
     static void addStats(TetherStatsList& statsList, const TetherStats& stats);
