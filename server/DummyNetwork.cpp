@@ -18,9 +18,6 @@
 
 #include "DummyNetwork.h"
 
-#include "RouteController.h"
-
-#include "log/log.h"
 #include "errno.h"
 
 namespace android {
