@@ -108,11 +108,6 @@ class TetherController {
     int disableNat(const char* intIface, const char* extIface);
     int setupIptablesHooks();
 
-    base::Result<void> addOffloadRule(const TetherOffloadRuleParcel& rule);
-    base::Result<void> removeOffloadRule(const TetherOffloadRuleParcel& rule);
-
-    int setTetherOffloadInterfaceQuota(int ifIndex, int64_t maxBytes);
-
     class TetherStats {
       public:
         TetherStats() = default;
@@ -153,8 +148,6 @@ class TetherController {
     typedef std::vector<TetherOffloadStats> TetherOffloadStatsList;
 
     netdutils::StatusOr<TetherStatsList> getTetherStats();
-    netdutils::StatusOr<TetherOffloadStatsList> getTetherOffloadStats();
-    base::Result<TetherOffloadStats> getAndClearTetherOffloadStats(int ifIndex);
 
     /*
      * extraProcessingInfo: contains raw parsed data, and error info.

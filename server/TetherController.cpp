@@ -815,77 +815,6 @@ int TetherController::disableNat(const char* intIface, const char* extIface) {
     return 0;
 }
 
-namespace {
-Result<void> validateOffloadRule(const TetherOffloadRuleParcel& rule) {
-    struct ethhdr hdr;
-
-    if (rule.inputInterfaceIndex <= 0) {
-        return Error(ENODEV) << "Invalid input interface " << rule.inputInterfaceIndex;
-    }
-    if (rule.outputInterfaceIndex <= 0) {
-        return Error(ENODEV) << "Invalid output interface " << rule.inputInterfaceIndex;
-    }
-    if (rule.prefixLength != 128) {
-        return Error(EINVAL) << "Prefix length must be 128, not " << rule.prefixLength;
-    }
-    if (rule.destination.size() != sizeof(in6_addr)) {
-        return Error(EAFNOSUPPORT) << "Invalid IP address length " << rule.destination.size();
-    }
-    if (rule.srcL2Address.size() != sizeof(hdr.h_source)) {
-        return Error(ENXIO) << "Invalid L2 src address length " << rule.srcL2Address.size();
-    }
-    if (rule.dstL2Address.size() != sizeof(hdr.h_dest)) {
-        return Error(ENXIO) << "Invalid L2 dst address length " << rule.dstL2Address.size();
-    }
-    if (rule.pmtu < IPV6_MIN_MTU || rule.pmtu > 0xFFFF) {
-        return Error(EINVAL) << "Invalid IPv6 path mtu " << rule.pmtu;
-    }
-    return Result<void>();
-}
-}  // namespace
-
-Result<void> TetherController::addOffloadRule(const TetherOffloadRuleParcel& rule) {
-    Result<void> res = validateOffloadRule(rule);
-    if (!res.ok()) return res;
-
-    ethhdr hdr = {
-            .h_proto = htons(ETH_P_IPV6),
-    };
-    memcpy(&hdr.h_dest, rule.dstL2Address.data(), sizeof(hdr.h_dest));
-    memcpy(&hdr.h_source, rule.srcL2Address.data(), sizeof(hdr.h_source));
-
-    // Only downstream supported for now.
-    TetherDownstream6Key key = {
-            .iif = static_cast<uint32_t>(rule.inputInterfaceIndex),
-            .neigh6 = *(const in6_addr*)rule.destination.data(),
-    };
-
-    Tether6Value value = {
-            .oif = static_cast<uint32_t>(rule.outputInterfaceIndex),
-            .macHeader = hdr,
-            .pmtu = static_cast<uint16_t>(rule.pmtu),
-    };
-
-    return mBpfDownstream6Map.writeValue(key, value, BPF_ANY);
-}
-
-Result<void> TetherController::removeOffloadRule(const TetherOffloadRuleParcel& rule) {
-    Result<void> res = validateOffloadRule(rule);
-    if (!res.ok()) return res;
-
-    TetherDownstream6Key key = {
-            .iif = static_cast<uint32_t>(rule.inputInterfaceIndex),
-            .neigh6 = *(const in6_addr*)rule.destination.data(),
-    };
-
-    Result<void> ret = mBpfDownstream6Map.deleteValue(key);
-
-    // Silently return success if the rule did not exist.
-    if (!ret.ok() && ret.error().code() == ENOENT) return {};
-
-    return ret;
-}
-
 void TetherController::addStats(TetherStatsList& statsList, const TetherStats& stats) {
     for (TetherStats& existing : statsList) {
         if (existing.addStatsIfMatch(stats)) {
@@ -1021,29 +950,6 @@ StatusOr<TetherController::TetherStatsList> TetherController::getTetherStats() {
     return statsList;
 }
 
-StatusOr<TetherController::TetherOffloadStatsList> TetherController::getTetherOffloadStats() {
-    TetherOffloadStatsList statsList;
-
-    const auto processTetherStats = [&statsList](const TetherStatsKey& key,
-                                                 const TetherStatsValue& value,
-                                                 const BpfMap<TetherStatsKey, TetherStatsValue>&) {
-        statsList.push_back({.ifIndex = static_cast<int>(key),
-                             .rxBytes = static_cast<int64_t>(value.rxBytes),
-                             .rxPackets = static_cast<int64_t>(value.rxPackets),
-                             .txBytes = static_cast<int64_t>(value.txBytes),
-                             .txPackets = static_cast<int64_t>(value.txPackets)});
-        return Result<void>();
-    };
-
-    auto ret = mBpfStatsMap.iterateWithValue(processTetherStats);
-    if (!ret.ok()) {
-        // Ignore error to return the remaining tether stats result.
-        ALOGE("Error processing tether stats from BPF maps: %s", ret.error().message().c_str());
-    }
-
-    return statsList;
-}
-
 // Use UINT64_MAX (~0uLL) for unlimited.
 Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
     // The common case is an update, where the stats already exist,
@@ -1085,67 +991,6 @@ Result<void> TetherController::setBpfLimit(uint32_t ifIndex, uint64_t limit) {
     }
 
     return {};
-}
-
-int TetherController::setTetherOffloadInterfaceQuota(int ifIndex, int64_t maxBytes) {
-    if (!mBpfStatsMap.isValid() || !mBpfLimitMap.isValid()) return -ENOTSUP;
-
-    if (ifIndex <= 0) return -ENODEV;
-
-    if (maxBytes < QUOTA_UNLIMITED) {
-        ALOGE("Invalid bytes value. Must be -1 (unlimited) or 0..max_int64.");
-        return -ERANGE;
-    }
-
-    // Note that a value of unlimited quota (-1) indicates simply max_uint64.
-    const auto res = setBpfLimit(static_cast<uint32_t>(ifIndex), static_cast<uint64_t>(maxBytes));
-    if (!res.ok()) {
-        ALOGE("Fail to set quota %" PRId64 " for interface index %d: %s", maxBytes, ifIndex,
-              strerror(res.error().code()));
-        return -res.error().code();
-    }
-
-    return 0;
-}
-
-Result<TetherController::TetherOffloadStats> TetherController::getAndClearTetherOffloadStats(
-        int ifIndex) {
-    if (!mBpfStatsMap.isValid() || !mBpfLimitMap.isValid()) return Error(ENOTSUP);
-
-    if (ifIndex <= 0) {
-        return Error(ENODEV) << "Invalid interface " << ifIndex;
-    }
-
-    // getAndClearTetherOffloadStats is called after all offload rules have already been deleted
-    // for the given upstream interface. Before starting to do cleanup stuff in this function, use
-    // synchronizeKernelRCU to make sure that all the current running eBPF programs are finished
-    // on all CPUs, especially the unfinished packet processing. After synchronizeKernelRCU
-    // returned, we can safely read or delete on the stats map or the limit map.
-    if (int res = bpf::synchronizeKernelRCU()) {
-        // Error log but don't return error. Do as much cleanup as possible.
-        ALOGE("synchronize_rcu() failed: %s", strerror(-res));
-    }
-
-    const auto stats = mBpfStatsMap.readValue(ifIndex);
-    if (!stats.ok()) {
-        return Error(stats.error().code()) << "Fail to get stats for interface index " << ifIndex;
-    }
-
-    auto res = mBpfStatsMap.deleteValue(ifIndex);
-    if (!res.ok()) {
-        return Error(res.error().code()) << "Fail to delete stats for interface index " << ifIndex;
-    }
-
-    res = mBpfLimitMap.deleteValue(ifIndex);
-    if (!res.ok()) {
-        return Error(res.error().code()) << "Fail to delete limit for interface index " << ifIndex;
-    }
-
-    return TetherOffloadStats{.ifIndex = static_cast<int>(ifIndex),
-                              .rxBytes = static_cast<int64_t>(stats.value().rxBytes),
-                              .rxPackets = static_cast<int64_t>(stats.value().rxPackets),
-                              .txBytes = static_cast<int64_t>(stats.value().txBytes),
-                              .txPackets = static_cast<int64_t>(stats.value().txPackets)};
 }
 
 void TetherController::dumpIfaces(DumpWriter& dw) {
