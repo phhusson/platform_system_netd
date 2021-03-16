@@ -72,14 +72,6 @@ class TetherController {
         int sendAllState(int daemonFd) const;
     } mDnsmasqState{};
 
-    // BPF maps, initialized by initMaps.
-    bpf::BpfMap<TetherDownstream6Key, Tether6Value> mBpfDownstream6Map;
-    bpf::BpfMap<Tether4Key, Tether4Value> mBpfDownstream4Map;
-    bpf::BpfMap<TetherUpstream6Key, Tether6Value> mBpfUpstream6Map;
-    bpf::BpfMap<Tether4Key, Tether4Value> mBpfUpstream4Map;
-    bpf::BpfMap<TetherStatsKey, TetherStatsValue> mBpfStatsMap;
-    bpf::BpfMap<TetherLimitKey, TetherLimitValue> mBpfLimitMap;
-
   public:
     TetherController();
     ~TetherController() = default;
@@ -189,8 +181,6 @@ class TetherController {
     int setTetherGlobalAlertRule();
     int setForwardRules(bool set, const char *intIface, const char *extIface);
     int setTetherCountingRules(bool add, const char *intIface, const char *extIface);
-
-    void initMaps();
 
     static void addStats(TetherStatsList& statsList, const TetherStats& stats);
 
