@@ -210,11 +210,6 @@ void TetherController::initMaps() {
         mBpfDownstream6Map.reset(fd);
         mBpfDownstream6Map.clear();
     }
-    fd = getTetherDownstream64MapFd();
-    if (fd >= 0) {
-        mBpfDownstream64Map.reset(fd);
-        mBpfDownstream64Map.clear();
-    }
     fd = getTetherDownstream4MapFd();
     if (fd >= 0) {
         mBpfDownstream4Map.reset(fd);
@@ -1199,7 +1194,7 @@ std::string l2ToString(const uint8_t* addr, size_t len) {
 }  // namespace
 
 void TetherController::dumpBpf(DumpWriter& dw) {
-    if (!mBpfDownstream6Map.isValid() || !mBpfDownstream64Map.isValid() ||
+    if (!mBpfDownstream6Map.isValid() ||
         !mBpfDownstream4Map.isValid() || !mBpfUpstream6Map.isValid() ||
         !mBpfUpstream4Map.isValid() || !mBpfStatsMap.isValid() || !mBpfLimitMap.isValid()) {
         dw.println("BPF not supported");
