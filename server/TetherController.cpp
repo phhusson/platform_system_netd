@@ -162,7 +162,6 @@ TetherController::TetherController() {
     } else {
         setIpFwdEnabled();
     }
-    initMaps();
 }
 
 bool TetherController::setIpFwdEnabled() {
@@ -193,23 +192,6 @@ bool TetherController::enableForwarding(const char* requester) {
 bool TetherController::disableForwarding(const char* requester) {
     mForwardingRequests.erase(requester);
     return setIpFwdEnabled();
-}
-
-void TetherController::initMaps() {
-    // Open BPF maps, ignoring errors because the device might not support BPF offload.
-    // TODO: All of this logic should be moved to the tethering mainline module.
-    int fd = getTetherDownstream6MapFd();
-    if (fd >= 0) mBpfDownstream6Map.reset(fd);
-    fd = getTetherDownstream4MapFd();
-    if (fd >= 0) mBpfDownstream4Map.reset(fd);
-    fd = getTetherUpstream6MapFd();
-    if (fd >= 0) mBpfUpstream6Map.reset(fd);
-    fd = getTetherUpstream4MapFd();
-    if (fd >= 0) mBpfUpstream4Map.reset(fd);
-    fd = getTetherStatsMapFd();
-    if (fd >= 0) mBpfStatsMap.reset(fd);
-    fd = getTetherLimitMapFd();
-    if (fd >= 0) mBpfLimitMap.reset(fd);
 }
 
 const std::set<std::string>& TetherController::getIpfwdRequesterList() const {
