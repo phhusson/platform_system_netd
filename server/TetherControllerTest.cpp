@@ -40,7 +40,6 @@ using android::base::Join;
 using android::base::StringPrintf;
 using android::bpf::BpfMap;
 using android::netdutils::StatusOr;
-using ::testing::Contains;
 using TetherStats = android::net::TetherController::TetherStats;
 using TetherStatsList = android::net::TetherController::TetherStatsList;
 using TetherOffloadStats = android::net::TetherController::TetherOffloadStats;

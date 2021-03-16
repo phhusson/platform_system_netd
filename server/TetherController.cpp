@@ -60,14 +60,11 @@
 namespace android {
 namespace net {
 
-using android::base::Error;
 using android::base::Join;
 using android::base::Pipe;
 using android::base::Result;
-using android::base::StringAppendF;
 using android::base::StringPrintf;
 using android::base::unique_fd;
-using android::net::TetherOffloadRuleParcel;
 using android::netdutils::DumpWriter;
 using android::netdutils::ScopedIndent;
 using android::netdutils::statusFromErrno;
@@ -83,10 +80,6 @@ constexpr const char kTcpBeLiberal[] = "/proc/sys/net/netfilter/nf_conntrack_tcp
 
 // Chosen to match AID_DNS_TETHER, as made "friendly" by fs_config_generator.py.
 constexpr const char kDnsmasqUsername[] = "dns_tether";
-
-// A value used by interface quota indicates there is no limit.
-// Sync from frameworks/base/core/java/android/net/netstats/provider/NetworkStatsProvider.java
-constexpr int64_t QUOTA_UNLIMITED = -1;
 
 bool writeToFile(const char* filename, const char* value) {
     int fd = open(filename, O_WRONLY | O_CLOEXEC);
@@ -1002,23 +995,6 @@ void TetherController::dumpIfaces(DumpWriter& dw) {
                    (it.second.active ? "ACTIVE" : "DISABLED"));
     }
 }
-
-namespace {
-
-std::string l2ToString(const uint8_t* addr, size_t len) {
-    std::string str;
-
-    if (len == 0) return str;
-
-    StringAppendF(&str, "%02x", addr[0]);
-    for (size_t i = 1; i < len; i++) {
-        StringAppendF(&str, ":%02x", addr[i]);
-    }
-
-    return str;
-}
-
-}  // namespace
 
 void TetherController::dump(DumpWriter& dw) {
     std::lock_guard guard(lock);
