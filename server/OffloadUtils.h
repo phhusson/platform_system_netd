@@ -88,112 +88,6 @@ inline int getClatIngress6ProgFd(bool with_ethernet_header) {
     return (fd == -1) ? -errno : fd;
 }
 
-inline int getTetherDownstream6MapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_DOWNSTREAM6_MAP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherDownstream64MapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_DOWNSTREAM64_MAP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherDownstream4MapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_DOWNSTREAM4_MAP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherDownstream6TcProgFd(bool with_ethernet_header) {
-    const int fd =
-            bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM6_TC_PROG_ETHER_PATH
-                                                      : TETHER_DOWNSTREAM6_TC_PROG_RAWIP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherDownstream4TcProgFd(bool with_ethernet_header) {
-    const int fd =
-            bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM4_TC_PROG_ETHER_PATH
-                                                      : TETHER_DOWNSTREAM4_TC_PROG_RAWIP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherUpstream6MapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_UPSTREAM6_MAP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherUpstream4MapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_UPSTREAM4_MAP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherUpstream6TcProgFd(bool with_ethernet_header) {
-    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM6_TC_PROG_ETHER_PATH
-                                                             : TETHER_UPSTREAM6_TC_PROG_RAWIP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherUpstream4TcProgFd(bool with_ethernet_header) {
-    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM4_TC_PROG_ETHER_PATH
-                                                             : TETHER_UPSTREAM4_TC_PROG_RAWIP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTether6TcProgFd(bool with_ethernet_header, bool downstream) {
-    return downstream ? getTetherDownstream6TcProgFd(with_ethernet_header)
-                      : getTetherUpstream6TcProgFd(with_ethernet_header);
-}
-
-inline int getTether4TcProgFd(bool with_ethernet_header, bool downstream) {
-    return downstream ? getTetherDownstream4TcProgFd(with_ethernet_header)
-                      : getTetherUpstream4TcProgFd(with_ethernet_header);
-}
-
-inline int getTetherStatsMapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_STATS_MAP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherLimitMapFd(void) {
-    const int fd = bpf::mapRetrieveRW(TETHER_LIMIT_MAP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherDownstreamXdpProgFd(bool with_ethernet_header) {
-    const int fd =
-            bpf::retrieveProgram(with_ethernet_header ? TETHER_DOWNSTREAM_XDP_PROG_ETHER_PATH
-                                                      : TETHER_DOWNSTREAM_XDP_PROG_RAWIP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherUpstreamXdpProgFd(bool with_ethernet_header) {
-    const int fd = bpf::retrieveProgram(with_ethernet_header ? TETHER_UPSTREAM_XDP_PROG_ETHER_PATH
-                                                             : TETHER_UPSTREAM_XDP_PROG_RAWIP_PATH);
-    return (fd == -1) ? -errno : fd;
-}
-
-inline int getTetherXdpProgFd(bool with_ethernet_header, bool downstream) {
-    return downstream ? getTetherDownstreamXdpProgFd(with_ethernet_header)
-                      : getTetherUpstreamXdpProgFd(with_ethernet_header);
-}
-
-int doSetXDP(int ifIndex, int fd, __u32 flags);
-
-inline int addXDP(int ifIndex, int fd, int mode = XDP_FLAGS_DRV_MODE) {
-    if (fd < 0) return -EBADF;
-    return doSetXDP(ifIndex, fd, mode | XDP_FLAGS_UPDATE_IF_NOEXIST);
-}
-
-inline int setXDP(int ifIndex, int fd, int mode = XDP_FLAGS_DRV_MODE) {
-    if (fd < 0) return -EBADF;
-    return doSetXDP(ifIndex, fd, mode);
-}
-
-inline int removeXDP(int ifIndex, int mode = XDP_FLAGS_DRV_MODE) {
-    // an fd of -1 means to remove
-    return doSetXDP(ifIndex, -1, mode);
-}
-
 int doTcQdiscClsact(int ifIndex, uint16_t nlMsgType, uint16_t nlMsgFlags);
 
 inline int tcQdiscAddDevClsact(int ifIndex) {
@@ -223,17 +117,6 @@ inline int tcFilterAddDevEgressClatIpv4(int ifIndex, int bpfFd, bool ethernet) {
     return tcFilterAddDevBpf(ifIndex, EGRESS, PRIO_CLAT, ETH_P_IP, bpfFd, ethernet, UPSTREAM);
 }
 
-// tc filter add dev .. ingress prio 1 protocol ipv6 bpf object-pinned /sys/fs/bpf/... direct-action
-inline int tcFilterAddDevIngress6Tether(int ifIndex, int bpfFd, bool ethernet, bool downstream) {
-    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_TETHER6, ETH_P_IPV6, bpfFd, ethernet,
-                             downstream);
-}
-
-// tc filter add dev .. ingress prio 2 protocol ip bpf object-pinned /sys/fs/bpf/... direct-action
-inline int tcFilterAddDevIngress4Tether(int ifIndex, int bpfFd, bool ethernet, bool downstream) {
-    return tcFilterAddDevBpf(ifIndex, INGRESS, PRIO_TETHER4, ETH_P_IP, bpfFd, ethernet, downstream);
-}
-
 // tc filter del dev .. in/egress prio .. protocol ..
 int tcFilterDelDev(int ifIndex, bool ingress, uint16_t prio, uint16_t proto);
 
@@ -245,16 +128,6 @@ inline int tcFilterDelDevIngressClatIpv6(int ifIndex) {
 // tc filter del dev .. egress prio 3 protocol ip
 inline int tcFilterDelDevEgressClatIpv4(int ifIndex) {
     return tcFilterDelDev(ifIndex, EGRESS, PRIO_CLAT, ETH_P_IP);
-}
-
-// tc filter del dev .. ingress prio 1 protocol ipv6
-inline int tcFilterDelDevIngress6Tether(int ifIndex) {
-    return tcFilterDelDev(ifIndex, INGRESS, PRIO_TETHER6, ETH_P_IPV6);
-}
-
-// tc filter del dev .. ingress prio 2 protocol ip
-inline int tcFilterDelDevIngress4Tether(int ifIndex) {
-    return tcFilterDelDev(ifIndex, INGRESS, PRIO_TETHER4, ETH_P_IP);
 }
 
 }  // namespace net
