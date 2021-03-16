@@ -38,7 +38,6 @@
 
 using android::base::Join;
 using android::base::StringPrintf;
-using android::bpf::BpfMap;
 using android::netdutils::StatusOr;
 using TetherStats = android::net::TetherController::TetherStats;
 using TetherStatsList = android::net::TetherController::TetherStatsList;
@@ -47,8 +46,6 @@ using TetherOffloadStatsList = android::net::TetherController::TetherOffloadStat
 
 namespace android {
 namespace net {
-
-constexpr int TEST_MAP_SIZE = 10;
 
 // Comparison for TetherOffloadStats. Need to override operator== because class TetherOffloadStats
 // doesn't have one.
@@ -67,18 +64,6 @@ public:
 
 protected:
     TetherController mTetherCtrl;
-    BpfMap<TetherStatsKey, TetherStatsValue> mFakeTetherStatsMap{BPF_MAP_TYPE_HASH, TEST_MAP_SIZE};
-    BpfMap<TetherLimitKey, TetherLimitValue> mFakeTetherLimitMap{BPF_MAP_TYPE_HASH, TEST_MAP_SIZE};
-
-    void SetUp() {
-        ASSERT_TRUE(mFakeTetherStatsMap.isValid());
-        ASSERT_TRUE(mFakeTetherLimitMap.isValid());
-
-        mTetherCtrl.mBpfStatsMap = mFakeTetherStatsMap;
-        ASSERT_TRUE(mTetherCtrl.mBpfStatsMap.isValid());
-        mTetherCtrl.mBpfLimitMap = mFakeTetherLimitMap;
-        ASSERT_TRUE(mTetherCtrl.mBpfLimitMap.isValid());
-    }
 
     std::string toString(const TetherOffloadStatsList& statsList) {
         std::string result;
@@ -89,14 +74,6 @@ protected:
         }
         return result;
     }
-
-    void updateMaps(uint32_t ifaceIndex, uint64_t rxBytes, uint64_t rxPackets, uint64_t txBytes,
-                    uint64_t txPackets) {
-        // {rx, tx}Errors in |tetherStats| are set zero because getTetherStats doesn't use them.
-        const TetherStatsValue tetherStats = {rxPackets, rxBytes, 0 /*unused*/,
-                                              txPackets, txBytes, 0 /*unused*/};
-        ASSERT_RESULT_OK(mFakeTetherStatsMap.writeValue(ifaceIndex, tetherStats, BPF_ANY));
-    };
 
     int setDefaults() {
         return mTetherCtrl.setDefaults();
