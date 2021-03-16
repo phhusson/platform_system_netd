@@ -646,6 +646,58 @@ netdutils::Status XfrmController::ipSecDeleteSecurityAssociation(
     return ret;
 }
 
+netdutils::Status XfrmController::ipSecMigrate(int32_t transformId, int32_t selAddrFamily,
+                                               int32_t direction,
+                                               const std::string& oldSourceAddress,
+                                               const std::string& oldDestinationAddress,
+                                               const std::string& newSourceAddress,
+                                               const std::string& newDestinationAddress,
+                                               int32_t xfrmInterfaceId) {
+    ALOGD("XfrmController:%s, line=%d", __FUNCTION__, __LINE__);
+    ALOGD("transformId=%d", transformId);
+    ALOGD("selAddrFamily=%d", selAddrFamily);
+    ALOGD("direction=%d", direction);
+    ALOGD("oldSourceAddress=%s", oldSourceAddress.c_str());
+    ALOGD("oldDestinationAddress=%s", oldDestinationAddress.c_str());
+    ALOGD("newSourceAddress=%s", newSourceAddress.c_str());
+    ALOGD("newDestinationAddress=%s", newDestinationAddress.c_str());
+    ALOGD("xfrmInterfaceId=%d", xfrmInterfaceId);
+
+    XfrmSocketImpl sock;
+    Status socketStatus = sock.open();
+    if (!socketStatus.ok()) {
+        ALOGD("Sock open failed for XFRM, line=%d", __LINE__);
+        return socketStatus;
+    }
+
+    XfrmMigrateInfo migrateInfo{};
+    Status ret =
+            fillXfrmCommonInfo(oldSourceAddress, oldDestinationAddress, 0 /* spi */, 0 /* mark */,
+                               0 /* markMask */, transformId, xfrmInterfaceId, &migrateInfo);
+
+    if (!ret.ok()) {
+        ALOGD("Failed to fill in XfrmCommonInfo, line=%d", __LINE__);
+        return ret;
+    }
+
+    migrateInfo.selAddrFamily = selAddrFamily;
+    migrateInfo.direction = static_cast<XfrmDirection>(direction);
+
+    ret = fillXfrmEndpointPair(newSourceAddress, newDestinationAddress,
+                               &migrateInfo.newEndpointInfo);
+    if (!ret.ok()) {
+        ALOGD("Failed to fill in XfrmEndpointPair, line=%d", __LINE__);
+        return ret;
+    }
+
+    ret = migrate(migrateInfo, sock);
+
+    if (!ret.ok()) {
+        ALOGD("Failed to migrate Security Association, line=%d", __LINE__);
+    }
+    return ret;
+}
+
 netdutils::Status XfrmController::fillXfrmEndpointPair(const std::string& sourceAddress,
                                                        const std::string& destinationAddress,
                                                        XfrmEndpointPair* endpointPair) {
@@ -1122,6 +1174,24 @@ netdutils::Status XfrmController::deleteSecurityAssociation(const XfrmCommonInfo
     return sock.sendMessage(XFRM_MSG_DELSA, NETLINK_REQUEST_FLAGS, 0, &iov);
 }
 
+netdutils::Status XfrmController::migrate(const XfrmMigrateInfo& record, const XfrmSocket& sock) {
+    xfrm_userpolicy_id xfrm_policyid{};
+    nlattr_xfrm_user_migrate xfrm_migrate{};
+
+    __kernel_size_t lenPolicyId = fillUserPolicyId(record, &xfrm_policyid);
+    __kernel_size_t lenXfrmMigrate = fillNlAttrXfrmMigrate(record, &xfrm_migrate);
+
+    std::vector<iovec> iov = {
+            {nullptr, 0},  // reserved for the eventual addition of a NLMSG_HDR
+            {&xfrm_policyid, lenPolicyId},
+            {kPadBytes, NLMSG_ALIGN(lenPolicyId) - lenPolicyId},
+            {&xfrm_migrate, lenXfrmMigrate},
+            {kPadBytes, NLMSG_ALIGN(lenXfrmMigrate) - lenXfrmMigrate},
+    };
+
+    return sock.sendMessage(XFRM_MSG_MIGRATE, NETLINK_REQUEST_FLAGS, 0, &iov);
+}
+
 netdutils::Status XfrmController::allocateSpi(const XfrmSaInfo& record, uint32_t minSpi,
                                               uint32_t maxSpi, uint32_t* outSpi,
                                               const XfrmSocket& sock) {
@@ -1346,6 +1416,24 @@ int XfrmController::fillNlAttrXfrmIntfId(const uint32_t intfIdValue,
     intf_id->if_id = intfIdValue;
     int len = NLA_HDRLEN + sizeof(__u32);
     fillXfrmNlaHdr(&intf_id->hdr, XFRMA_IF_ID, len);
+    return len;
+}
+
+int XfrmController::fillNlAttrXfrmMigrate(const XfrmMigrateInfo& record,
+                                          nlattr_xfrm_user_migrate* migrate) {
+    migrate->migrate.old_daddr = record.dstAddr;
+    migrate->migrate.old_saddr = record.srcAddr;
+    migrate->migrate.new_daddr = record.newEndpointInfo.dstAddr;
+    migrate->migrate.new_saddr = record.newEndpointInfo.srcAddr;
+    migrate->migrate.proto = IPPROTO_ESP;
+    migrate->migrate.mode = static_cast<uint8_t>(XfrmMode::TUNNEL);
+    migrate->migrate.reqid = record.transformId;
+    migrate->migrate.old_family = record.addrFamily;
+    migrate->migrate.new_family = record.newEndpointInfo.addrFamily;
+
+    int len = NLA_HDRLEN + sizeof(xfrm_user_migrate);
+    fillXfrmNlaHdr(&migrate->hdr, XFRMA_MIGRATE, len);
+
     return len;
 }
 
