@@ -74,6 +74,7 @@ cc_defaults {
         "-misc-non-private-member-variables-in-classes",  // Also complains about structs
         "-performance-noexcept-move-constructor",
         "-performance-unnecessary-value-param",
+        "-performance-no-int-to-ptr",
     ],
     tidy_flags: [
         "-warnings-as-errors="
