@@ -62,7 +62,7 @@ cc_test {
         "libnetd_client",
     ],
     sanitize: {
-        address: true,
+        address: false,
         recover: [ "all" ],
     },
 }
