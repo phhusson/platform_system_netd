@@ -41,20 +41,9 @@ using android::base::StringPrintf;
 using android::netdutils::StatusOr;
 using TetherStats = android::net::TetherController::TetherStats;
 using TetherStatsList = android::net::TetherController::TetherStatsList;
-using TetherOffloadStats = android::net::TetherController::TetherOffloadStats;
-using TetherOffloadStatsList = android::net::TetherController::TetherOffloadStatsList;
 
 namespace android {
 namespace net {
-
-// Comparison for TetherOffloadStats. Need to override operator== because class TetherOffloadStats
-// doesn't have one.
-// TODO: once C++20 is used, use default operator== in TetherOffloadStats and remove the overriding
-// here.
-bool operator==(const TetherOffloadStats& lhs, const TetherOffloadStats& rhs) {
-    return lhs.ifIndex == rhs.ifIndex && lhs.rxBytes == rhs.rxBytes && lhs.txBytes == rhs.txBytes &&
-           lhs.rxPackets == rhs.rxPackets && lhs.txPackets == rhs.txPackets;
-}
 
 class TetherControllerTest : public IptablesBaseTest {
 public:
@@ -64,16 +53,6 @@ public:
 
 protected:
     TetherController mTetherCtrl;
-
-    std::string toString(const TetherOffloadStatsList& statsList) {
-        std::string result;
-        for (const auto& stats : statsList) {
-            result += StringPrintf("%d, %" PRId64 ", %" PRId64 ", %" PRId64 ", %" PRId64 "\n",
-                                   stats.ifIndex, stats.rxBytes, stats.rxPackets, stats.txBytes,
-                                   stats.txPackets);
-        }
-        return result;
-    }
 
     int setDefaults() {
         return mTetherCtrl.setDefaults();
