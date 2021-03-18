@@ -128,16 +128,7 @@ class TetherController {
         }
     };
 
-    struct TetherOffloadStats {
-        int ifIndex;
-        int64_t rxBytes;
-        int64_t rxPackets;
-        int64_t txBytes;
-        int64_t txPackets;
-    };
-
     typedef std::vector<TetherStats> TetherStatsList;
-    typedef std::vector<TetherOffloadStats> TetherOffloadStatsList;
 
     netdutils::StatusOr<TetherStatsList> getTetherStats();
 
