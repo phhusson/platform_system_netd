@@ -157,64 +157,6 @@ static int sendAndProcessNetlinkResponse(const void* req, int len) {
     return resp.e.error;  // returns 0 on success
 }
 
-int doSetXDP(int ifIndex, int fd, __u32 flags) {
-    const struct {
-        nlmsghdr n;
-        ifinfomsg i;
-        struct {
-            nlattr attr;
-            struct {
-                nlattr attr;
-                int value;
-            } fd;
-            struct {
-                nlattr attr;
-                __u32 value;
-            } flags;
-        } nested;
-    } req = {
-            .n =
-                    {
-                            .nlmsg_len = sizeof(req),
-                            .nlmsg_type = RTM_SETLINK,
-                            .nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
-                    },
-            .i =
-                    {
-                            .ifi_family = AF_UNSPEC,
-                            .ifi_index = ifIndex,
-                    },
-            .nested =
-                    {
-                            .attr =
-                                    {
-                                            .nla_len = sizeof(req.nested),
-                                            .nla_type = NLA_F_NESTED | IFLA_XDP,
-                                    },
-                            .fd =
-                                    {
-                                            .attr =
-                                                    {
-                                                            .nla_len = sizeof(req.nested.fd),
-                                                            .nla_type = IFLA_XDP_FD,
-                                                    },
-                                            .value = fd,  // -1 means remove
-                                    },
-                            .flags =
-                                    {
-                                            .attr =
-                                                    {
-                                                            .nla_len = sizeof(req.nested.flags),
-                                                            .nla_type = IFLA_XDP_FLAGS,
-                                                    },
-                                            .value = flags,
-                                    },
-                    },
-    };
-
-    return sendAndProcessNetlinkResponse(&req, sizeof(req));
-}
-
 // ADD:     nlMsgType=RTM_NEWQDISC nlMsgFlags=NLM_F_EXCL|NLM_F_CREATE
 // REPLACE: nlMsgType=RTM_NEWQDISC nlMsgFlags=NLM_F_CREATE|NLM_F_REPLACE
 // DEL:     nlMsgType=RTM_DELQDISC nlMsgFlags=0
@@ -262,10 +204,12 @@ int doTcQdiscClsact(int ifIndex, uint16_t nlMsgType, uint16_t nlMsgFlags) {
     return sendAndProcessNetlinkResponse(&req, sizeof(req));
 }
 
-// tc filter add dev .. in/egress prio 1 protocol ipv6/ip bpf object-pinned /sys/fs/bpf/...
+// The priority of clat hook - must be after tethering.
+constexpr uint16_t PRIO_CLAT = 4;
+
+// tc filter add dev .. in/egress prio 4 protocol ipv6/ip bpf object-pinned /sys/fs/bpf/...
 // direct-action
-int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, int bpfFd,
-                      bool ethernet, bool downstream) {
+int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t proto, int bpfFd, bool ethernet) {
     // This is the name of the filter we're attaching (ie. this is the 'bpf'
     // packet classifier enabled by kernel config option CONFIG_NET_CLS_BPF.
     //
@@ -304,62 +248,6 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
     // (also compatible with anything that has standard ethernet header)
     static constexpr char name_clat_tx_ether[] = CLAT_EGRESS4_PROG_ETHER_NAME FSOBJ_SUFFIX;
 
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_downstream6_rawip:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
-    // (also compatible with anything that has 0 size L2 header)
-    static constexpr char name_tether_down6_rawip[] =
-            TETHER_DOWNSTREAM6_TC_PROG_RAWIP_NAME FSOBJ_SUFFIX;
-
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_downstream6_ether:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_ETHER interfaces.
-    // (also compatible with anything that has standard ethernet header)
-    static constexpr char name_tether_down6_ether[] =
-            TETHER_DOWNSTREAM6_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
-
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_downstream4_rawip:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
-    // (also compatible with anything that has 0 size L2 header)
-    static constexpr char name_tether_down4_rawip[] =
-            TETHER_DOWNSTREAM4_TC_PROG_RAWIP_NAME FSOBJ_SUFFIX;
-
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_downstream4_ether:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_ETHER interfaces.
-    // (also compatible with anything that has standard ethernet header)
-    static constexpr char name_tether_down4_ether[] =
-            TETHER_DOWNSTREAM4_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
-
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_upstream6_rawip:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
-    // (also compatible with anything that has 0 size L2 header)
-    static constexpr char name_tether_up6_rawip[] =
-            TETHER_UPSTREAM6_TC_PROG_RAWIP_NAME FSOBJ_SUFFIX;
-
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_upstream6_ether:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_ETHER interfaces.
-    // (also compatible with anything that has standard ethernet header)
-    static constexpr char name_tether_up6_ether[] =
-            TETHER_UPSTREAM6_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
-
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_upstream4_rawip:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_RAWIP interfaces.
-    // (also compatible with anything that has 0 size L2 header)
-    static constexpr char name_tether_up4_rawip[] =
-            TETHER_UPSTREAM4_TC_PROG_RAWIP_NAME FSOBJ_SUFFIX;
-
-    // This macro expands (from header files) to:
-    //   prog_offload_schedcls_tether_upstream4_ether:[*fsobj]
-    // and is the name of the pinned ingress ebpf program for ARPHRD_ETHER interfaces.
-    // (also compatible with anything that has standard ethernet header)
-    static constexpr char name_tether_up4_ether[] =
-            TETHER_UPSTREAM4_TC_PROG_ETHER_NAME FSOBJ_SUFFIX;
-
 #undef FSOBJ_SUFFIX
 
     // The actual name we'll use is determined at run time via 'ethernet' and 'ingress'
@@ -371,31 +259,12 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
             sizeof(name_clat_rx_ether),
             sizeof(name_clat_tx_rawip),
             sizeof(name_clat_tx_ether),
-            sizeof(name_tether_down6_rawip),
-            sizeof(name_tether_down6_ether),
-            sizeof(name_tether_down4_rawip),
-            sizeof(name_tether_down4_ether),
-            sizeof(name_tether_up6_rawip),
-            sizeof(name_tether_up6_ether),
-            sizeof(name_tether_up4_rawip),
-            sizeof(name_tether_up4_ether),
     });
 
     // These are not compile time constants: 'name' is used in strncpy below
     const char* const name_clat_rx = ethernet ? name_clat_rx_ether : name_clat_rx_rawip;
     const char* const name_clat_tx = ethernet ? name_clat_tx_ether : name_clat_tx_rawip;
-    const char* const name_clat = ingress ? name_clat_rx : name_clat_tx;
-    const char* const name_down6_tether =
-            ethernet ? name_tether_down6_ether : name_tether_down6_rawip;
-    const char* const name_down4_tether =
-            ethernet ? name_tether_down4_ether : name_tether_down4_rawip;
-    const char* const name_up6_tether = ethernet ? name_tether_up6_ether : name_tether_up6_rawip;
-    const char* const name_up4_tether = ethernet ? name_tether_up4_ether : name_tether_up4_rawip;
-    const char* const name_tether6 = downstream ? name_down6_tether : name_up6_tether;
-    const char* const name_tether4 = downstream ? name_down4_tether : name_up4_tether;
-    const char* const name = (prio == PRIO_CLAT)
-                                     ? name_clat
-                                     : ((prio == PRIO_TETHER6) ? name_tether6 : name_tether4);
+    const char* const name = ingress ? name_clat_rx : name_clat_tx;
 
     struct {
         nlmsghdr n;
@@ -433,7 +302,7 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
                             .tcm_handle = TC_H_UNSPEC,
                             .tcm_parent = TC_H_MAKE(TC_H_CLSACT,
                                                     ingress ? TC_H_MIN_INGRESS : TC_H_MIN_EGRESS),
-                            .tcm_info = static_cast<__u32>((prio << 16) | htons(proto)),
+                            .tcm_info = static_cast<__u32>((PRIO_CLAT << 16) | htons(proto)),
                     },
             .kind =
                     {
@@ -489,8 +358,8 @@ int tcFilterAddDevBpf(int ifIndex, bool ingress, uint16_t prio, uint16_t proto, 
     return sendAndProcessNetlinkResponse(&req, sizeof(req));
 }
 
-// tc filter del dev .. in/egress prio .. protocol ..
-int tcFilterDelDev(int ifIndex, bool ingress, uint16_t prio, uint16_t proto) {
+// tc filter del dev .. in/egress prio 4 protocol ..
+int tcFilterDelDev(int ifIndex, bool ingress, uint16_t proto) {
     const struct {
         nlmsghdr n;
         tcmsg t;
@@ -508,7 +377,7 @@ int tcFilterDelDev(int ifIndex, bool ingress, uint16_t prio, uint16_t proto) {
                             .tcm_handle = TC_H_UNSPEC,
                             .tcm_parent = TC_H_MAKE(TC_H_CLSACT,
                                                     ingress ? TC_H_MIN_INGRESS : TC_H_MIN_EGRESS),
-                            .tcm_info = static_cast<__u32>((prio << 16) | htons(proto)),
+                            .tcm_info = static_cast<__u32>((PRIO_CLAT << 16) | htons(proto)),
                     },
     };
 
