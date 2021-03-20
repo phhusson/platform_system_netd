@@ -121,7 +121,7 @@ cc_test {
         },
     },
     sanitize: {
-        address: true,
+        address: false,
         recover: [ "all" ],
     },
 }
