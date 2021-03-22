@@ -52,14 +52,15 @@ public:
 
     std::string toString() const;
     bool appliesToUser(uid_t uid) const;
-    [[nodiscard]] int addUsers(const UidRanges& uidRanges);
-    [[nodiscard]] int removeUsers(const UidRanges& uidRanges);
+    [[nodiscard]] virtual int addUsers(const UidRanges&) { return -EINVAL; };
+    [[nodiscard]] virtual int removeUsers(const UidRanges&) { return -EINVAL; };
     bool isSecure() const;
     bool isPhysical() { return getType() == PHYSICAL; }
     bool isVirtual() { return getType() == VIRTUAL; }
 
 protected:
     explicit Network(unsigned netId, bool mSecure = false);
+    bool hasInvalidUidRanges(const UidRanges& uidRanges) const;
 
     const unsigned mNetId;
     std::set<std::string> mInterfaces;
@@ -71,8 +72,6 @@ private:
         REMOVE,
         ADD,
     };
-
-    bool hasInvalidUidRanges(const UidRanges& uidRanges) const;
 };
 
 }  // namespace android::net
