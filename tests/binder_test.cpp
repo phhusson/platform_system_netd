@@ -1097,7 +1097,7 @@ bool iptablesIdleTimerInterfaceRuleExists(const char* binary, const char* chainN
 void expectIdletimerInterfaceRuleExists(const std::string& ifname, int timeout,
                                         const std::string& classLabel) {
     std::string IdletimerRule =
-            StringPrintf("timeout:%u label:%s send_nl_msg:1", timeout, classLabel.c_str());
+            StringPrintf("timeout:%u label:%s send_nl_msg", timeout, classLabel.c_str());
     for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH}) {
         EXPECT_TRUE(iptablesIdleTimerInterfaceRuleExists(binary, IDLETIMER_RAW_PREROUTING, ifname,
                                                          IdletimerRule, RAW_TABLE));
@@ -1109,7 +1109,7 @@ void expectIdletimerInterfaceRuleExists(const std::string& ifname, int timeout,
 void expectIdletimerInterfaceRuleNotExists(const std::string& ifname, int timeout,
                                            const std::string& classLabel) {
     std::string IdletimerRule =
-            StringPrintf("timeout:%u label:%s send_nl_msg:1", timeout, classLabel.c_str());
+            StringPrintf("timeout:%u label:%s send_nl_msg", timeout, classLabel.c_str());
     for (const auto& binary : {IPTABLES_PATH, IP6TABLES_PATH}) {
         EXPECT_FALSE(iptablesIdleTimerInterfaceRuleExists(binary, IDLETIMER_RAW_PREROUTING, ifname,
                                                           IdletimerRule, RAW_TABLE));
