@@ -42,6 +42,8 @@ class PhysicalNetwork : public Network {
 
     [[nodiscard]] int addAsDefault();
     [[nodiscard]] int removeAsDefault();
+    [[nodiscard]] int addUsers(const UidRanges& uidRanges) override;
+    [[nodiscard]] int removeUsers(const UidRanges& uidRanges) override;
 
   private:
     Type getType() const override;
