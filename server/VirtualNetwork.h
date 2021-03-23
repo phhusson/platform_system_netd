@@ -33,6 +33,8 @@ class VirtualNetwork : public Network {
 public:
     VirtualNetwork(unsigned netId, bool secure);
     virtual ~VirtualNetwork();
+    [[nodiscard]] int addUsers(const UidRanges& uidRanges) override;
+    [[nodiscard]] int removeUsers(const UidRanges& uidRanges) override;
 
   private:
     Type getType() const override;
