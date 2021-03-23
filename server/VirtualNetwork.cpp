@@ -35,6 +35,36 @@ Network::Type VirtualNetwork::getType() const {
     return VIRTUAL;
 }
 
+int VirtualNetwork::addUsers(const UidRanges& uidRanges) {
+    if (hasInvalidUidRanges(uidRanges)) {
+        return -EINVAL;
+    }
+
+    for (const std::string& interface : mInterfaces) {
+        int ret = RouteController::addUsersToVirtualNetwork(mNetId, interface.c_str(), mSecure,
+                                                            uidRanges);
+        if (ret) {
+            ALOGE("failed to add users on interface %s of netId %u", interface.c_str(), mNetId);
+            return ret;
+        }
+    }
+    mUidRanges.add(uidRanges);
+    return 0;
+}
+
+int VirtualNetwork::removeUsers(const UidRanges& uidRanges) {
+    for (const std::string& interface : mInterfaces) {
+        int ret = RouteController::removeUsersFromVirtualNetwork(mNetId, interface.c_str(), mSecure,
+                                                                 uidRanges);
+        if (ret) {
+            ALOGE("failed to remove users on interface %s of netId %u", interface.c_str(), mNetId);
+            return ret;
+        }
+    }
+    mUidRanges.remove(uidRanges);
+    return 0;
+}
+
 int VirtualNetwork::addInterface(const std::string& interface) {
     if (hasInterface(interface)) {
         return 0;
