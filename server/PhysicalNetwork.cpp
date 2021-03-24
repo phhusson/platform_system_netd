@@ -158,6 +158,35 @@ int PhysicalNetwork::removeAsDefault() {
     return 0;
 }
 
+int PhysicalNetwork::addUsers(const UidRanges& uidRanges) {
+    if (hasInvalidUidRanges(uidRanges)) {
+        return -EINVAL;
+    }
+
+    for (const std::string& interface : mInterfaces) {
+        int ret = RouteController::addUsersToPhysicalNetwork(mNetId, interface.c_str(), uidRanges);
+        if (ret) {
+            ALOGE("failed to add users on interface %s of netId %u", interface.c_str(), mNetId);
+            return ret;
+        }
+    }
+    mUidRanges.add(uidRanges);
+    return 0;
+}
+
+int PhysicalNetwork::removeUsers(const UidRanges& uidRanges) {
+    for (const std::string& interface : mInterfaces) {
+        int ret = RouteController::removeUsersFromPhysicalNetwork(mNetId, interface.c_str(),
+                                                                  uidRanges);
+        if (ret) {
+            ALOGE("failed to remove users on interface %s of netId %u", interface.c_str(), mNetId);
+            return ret;
+        }
+    }
+    mUidRanges.remove(uidRanges);
+    return 0;
+}
+
 Network::Type PhysicalNetwork::getType() const {
     return PHYSICAL;
 }
