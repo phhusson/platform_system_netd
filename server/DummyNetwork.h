@@ -28,8 +28,6 @@ class DummyNetwork : public Network {
 
   private:
     Type getType() const override;
-    [[nodiscard]] int addInterface(const std::string& interface) override;
-    [[nodiscard]] int removeInterface(const std::string& interface) override;
 };
 
 }  // namespace android::net

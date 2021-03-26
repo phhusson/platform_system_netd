@@ -46,8 +46,8 @@ public:
     const std::set<std::string>& getInterfaces() const;
 
     // These return 0 on success or negative errno on failure.
-    [[nodiscard]] virtual int addInterface(const std::string& interface) = 0;
-    [[nodiscard]] virtual int removeInterface(const std::string& interface) = 0;
+    [[nodiscard]] virtual int addInterface(const std::string&) { return -EINVAL; }
+    [[nodiscard]] virtual int removeInterface(const std::string&) { return -EINVAL; }
     [[nodiscard]] int clearInterfaces();
 
     std::string toString() const;
