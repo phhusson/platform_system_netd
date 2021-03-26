@@ -114,6 +114,9 @@ rtattr RTATTR_METRICS   = { U16_RTA_LENGTH(RTATTR_METRICS_SIZE),         RTA_MET
 
 uint8_t PADDING_BUFFER[RTA_ALIGNTO] = {0, 0, 0, 0};
 
+constexpr bool EXPLICIT = true;
+constexpr bool IMPLICIT = false;
+
 // END CONSTANTS ----------------------------------------------------------------------------------
 
 static const char* actionName(uint16_t action) {
@@ -735,10 +738,10 @@ int RouteController::configureDummyNetwork() {
                                       INVALID_UID, INVALID_UID, add);
 }
 
-[[nodiscard]] static int modifyUidExplicitNetworkRule(unsigned netId, uint32_t table,
-                                                      uid_t uidStart, uid_t uidEnd, bool add) {
+[[nodiscard]] static int modifyUidNetworkRule(unsigned netId, uint32_t table, uid_t uidStart,
+                                              uid_t uidEnd, bool add, bool explicitSelect) {
     if ((uidStart == INVALID_UID) || (uidEnd == INVALID_UID)) {
-        ALOGE("modifyUidExplicitNetworkRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
+        ALOGE("modifyUidNetworkRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
         return -EUSERS;
     }
 
@@ -748,39 +751,18 @@ int RouteController::configureDummyNetwork() {
     fwmark.netId = netId;
     mask.netId = FWMARK_NET_ID_MASK;
 
-    fwmark.explicitlySelected = true;
+    fwmark.explicitlySelected = explicitSelect;
     mask.explicitlySelected = true;
 
     // Access to this network is controlled by UID rules, not permission bits.
     fwmark.permission = PERMISSION_NONE;
     mask.permission = PERMISSION_NONE;
 
-    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE, RULE_PRIORITY_UID_EXPLICIT_NETWORK, table,
-                        fwmark.intValue, mask.intValue, IIF_LOOPBACK, OIF_NONE, uidStart, uidEnd);
-}
-
-[[nodiscard]] static int modifyUidImplicitNetworkRule(unsigned netId, uint32_t table,
-                                                      uid_t uidStart, uid_t uidEnd, bool add) {
-    if ((uidStart == INVALID_UID) || (uidEnd == INVALID_UID)) {
-        ALOGE("modifyUidImplicitNetworkRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
-        return -EUSERS;
-    }
-
-    Fwmark fwmark;
-    Fwmark mask;
-
-    fwmark.netId = netId;
-    mask.netId = FWMARK_NET_ID_MASK;
-
-    fwmark.explicitlySelected = false;
-    mask.explicitlySelected = true;
-
-    // Access to this network is controlled by UID rules, not permission bits.
-    fwmark.permission = PERMISSION_NONE;
-    mask.permission = PERMISSION_NONE;
-
-    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE, RULE_PRIORITY_UID_IMPLICIT_NETWORK, table,
-                        fwmark.intValue, mask.intValue, IIF_LOOPBACK, OIF_NONE, uidStart, uidEnd);
+    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE,
+                        explicitSelect ? RULE_PRIORITY_UID_EXPLICIT_NETWORK
+                                       : RULE_PRIORITY_UID_IMPLICIT_NETWORK,
+                        table, fwmark.intValue, mask.intValue, IIF_LOOPBACK, OIF_NONE, uidStart,
+                        uidEnd);
 }
 
 [[nodiscard]] static int modifyUidDefaultNetworkRule(uint32_t table, uid_t uidStart, uid_t uidEnd,
@@ -814,10 +796,10 @@ int RouteController::modifyPhysicalNetwork(unsigned netId, const char* interface
     }
 
     for (const UidRangeParcel& range : uidRanges.getRanges()) {
-        if (int ret = modifyUidExplicitNetworkRule(netId, table, range.start, range.stop, add)) {
+        if (int ret = modifyUidNetworkRule(netId, table, range.start, range.stop, add, EXPLICIT)) {
             return ret;
         }
-        if (int ret = modifyUidImplicitNetworkRule(netId, table, range.start, range.stop, add)) {
+        if (int ret = modifyUidNetworkRule(netId, table, range.start, range.stop, add, IMPLICIT)) {
             return ret;
         }
         if (int ret = modifyUidDefaultNetworkRule(table, range.start, range.stop, add)) {
