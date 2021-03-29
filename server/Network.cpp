@@ -74,6 +74,9 @@ std::string Network::toString() const {
         case PHYSICAL:
             repr << "PHYSICAL";
             break;
+        case UNREACHABLE:
+            repr << "UNREACHABLE";
+            break;
         case VIRTUAL:
             repr << "VIRTUAL";
             break;
