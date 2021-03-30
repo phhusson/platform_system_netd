@@ -82,6 +82,14 @@ aidl_interface {
             // this is part of updatable modules(NetworkStack) which targets 29(Q)
             min_sdk_version: "29",
         },
+        ndk: {
+            apex_available: [
+                "//apex_available:platform",
+            ],
+            // This is necessary for the DnsResovler tests to run in Android Q.
+            // Soong would recognize this value and produce the Q compatible aidl library.
+            min_sdk_version: "29",
+        },
     },
     versions: [
         "1",
