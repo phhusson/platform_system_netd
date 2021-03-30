@@ -850,6 +850,71 @@ int RouteController::modifyPhysicalNetwork(unsigned netId, const char* interface
     return 0;
 }
 
+[[nodiscard]] static int modifyUidUnreachableRule(unsigned netId, uid_t uidStart, uid_t uidEnd,
+                                                  bool add, bool explicitSelect) {
+    if ((uidStart == INVALID_UID) || (uidEnd == INVALID_UID)) {
+        ALOGE("modifyUidUnreachableRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
+        return -EUSERS;
+    }
+
+    Fwmark fwmark;
+    Fwmark mask;
+
+    fwmark.netId = netId;
+    mask.netId = FWMARK_NET_ID_MASK;
+
+    fwmark.explicitlySelected = explicitSelect;
+    mask.explicitlySelected = true;
+
+    // Access to this network is controlled by UID rules, not permission bits.
+    fwmark.permission = PERMISSION_NONE;
+    mask.permission = PERMISSION_NONE;
+
+    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE,
+                        explicitSelect ? RULE_PRIORITY_UID_EXPLICIT_NETWORK
+                                       : RULE_PRIORITY_UID_IMPLICIT_NETWORK,
+                        FR_ACT_UNREACHABLE, RT_TABLE_UNSPEC, fwmark.intValue, mask.intValue,
+                        IIF_LOOPBACK, OIF_NONE, uidStart, uidEnd);
+}
+
+[[nodiscard]] static int modifyUidDefaultUnreachableRule(uid_t uidStart, uid_t uidEnd, bool add) {
+    if ((uidStart == INVALID_UID) || (uidEnd == INVALID_UID)) {
+        ALOGE("modifyUidDefaultNetworkRule, invalid UIDs (%u, %u)", uidStart, uidEnd);
+        return -EUSERS;
+    }
+
+    Fwmark fwmark;
+    Fwmark mask;
+
+    fwmark.netId = NETID_UNSET;
+    mask.netId = FWMARK_NET_ID_MASK;
+
+    // Access to this network is controlled by UID rules, not permission bits.
+    fwmark.permission = PERMISSION_NONE;
+    mask.permission = PERMISSION_NONE;
+
+    return modifyIpRule(add ? RTM_NEWRULE : RTM_DELRULE, RULE_PRIORITY_UID_DEFAULT_UNREACHABLE,
+                        FR_ACT_UNREACHABLE, RT_TABLE_UNSPEC, fwmark.intValue, mask.intValue,
+                        IIF_LOOPBACK, OIF_NONE, uidStart, uidEnd);
+}
+
+int RouteController::modifyUnreachableNetwork(unsigned netId, const UidRanges& uidRanges,
+                                              bool add) {
+    for (const UidRangeParcel& range : uidRanges.getRanges()) {
+        if (int ret = modifyUidUnreachableRule(netId, range.start, range.stop, add, EXPLICIT)) {
+            return ret;
+        }
+        if (int ret = modifyUidUnreachableRule(netId, range.start, range.stop, add, IMPLICIT)) {
+            return ret;
+        }
+        if (int ret = modifyUidDefaultUnreachableRule(range.start, range.stop, add)) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 [[nodiscard]] static int modifyRejectNonSecureNetworkRule(const UidRanges& uidRanges, bool add) {
     Fwmark fwmark;
     Fwmark mask;
@@ -1241,6 +1306,14 @@ int RouteController::removeUsersFromPhysicalNetwork(unsigned netId, const char* 
                                                     const UidRanges& uidRanges) {
     return modifyPhysicalNetwork(netId, interface, uidRanges, PERMISSION_NONE, ACTION_DEL,
                                  !MODIFY_NON_UID_BASED_RULES);
+}
+
+int RouteController::addUsersToUnreachableNetwork(unsigned netId, const UidRanges& uidRanges) {
+    return modifyUnreachableNetwork(netId, uidRanges, ACTION_ADD);
+}
+
+int RouteController::removeUsersFromUnreachableNetwork(unsigned netId, const UidRanges& uidRanges) {
+    return modifyUnreachableNetwork(netId, uidRanges, ACTION_DEL);
 }
 
 // Protects sInterfaceToTable.
