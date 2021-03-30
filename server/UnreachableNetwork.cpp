@@ -50,9 +50,5 @@ int UnreachableNetwork::removeUsers(const UidRanges& uidRanges) {
     return 0;
 }
 
-Network::Type UnreachableNetwork::getType() const {
-    return UNREACHABLE;
-}
-
 }  // namespace net
 }  // namespace android

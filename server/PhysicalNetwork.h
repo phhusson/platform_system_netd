@@ -48,7 +48,7 @@ class PhysicalNetwork : public Network {
     bool canAddUsers() override { return true; }
 
   private:
-    Type getType() const override;
+    std::string getTypeString() const override { return "PHYSICAL"; };
     [[nodiscard]] int addInterface(const std::string& interface) override;
     [[nodiscard]] int removeInterface(const std::string& interface) override;
     int destroySocketsLackingPermission(Permission permission);
