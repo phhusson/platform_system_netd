@@ -25,6 +25,8 @@ class UnreachableNetwork : public Network {
     explicit UnreachableNetwork(unsigned netId);
     [[nodiscard]] int addUsers(const UidRanges& uidRanges) override;
     [[nodiscard]] int removeUsers(const UidRanges& uidRanges) override;
+    bool isUnreachable() override { return true; }
+    bool canAddUsers() override { return true; }
 
   private:
     Type getType() const override;
