@@ -779,6 +779,14 @@ interface INetd {
      */
     const int DUMMY_NET_ID = 51;
 
+    /**
+     * Constant net ID for the "unreachable" network.
+     *
+     * The unreachable network is used to reject traffic. Any attempt to use it will fail
+     * with ENETUNREACH.
+     */
+    const int UNREACHABLE_NET_ID = 52;
+
     // Route does not specify a next hop
     const String NEXTHOP_NONE = "";
     // Route next hop is unreachable

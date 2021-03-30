@@ -31,6 +31,7 @@ public:
         DUMMY,
         LOCAL,
         PHYSICAL,
+        UNREACHABLE,
         VIRTUAL,
     };
 
@@ -56,7 +57,9 @@ public:
     [[nodiscard]] virtual int removeUsers(const UidRanges&) { return -EINVAL; };
     bool isSecure() const;
     bool isPhysical() { return getType() == PHYSICAL; }
+    bool isUnreachable() { return getType() == UNREACHABLE; }
     bool isVirtual() { return getType() == VIRTUAL; }
+    bool canAddUsers() { return isPhysical() || isVirtual() || isUnreachable(); }
 
 protected:
     explicit Network(unsigned netId, bool mSecure = false);

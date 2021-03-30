@@ -1,3 +1,18 @@
+/**
+ * Copyright (c) 2016, The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 ///////////////////////////////////////////////////////////////////////////////
 // THIS FILE IS IMMUTABLE. DO NOT EDIT IN ANY CASE.                          //
 ///////////////////////////////////////////////////////////////////////////////
@@ -138,6 +153,7 @@ interface INetd {
   const int PENALTY_POLICY_REJECT = 3;
   const int LOCAL_NET_ID = 99;
   const int DUMMY_NET_ID = 51;
+  const int UNREACHABLE_NET_ID = 52;
   const String NEXTHOP_NONE = "";
   const String NEXTHOP_UNREACHABLE = "unreachable";
   const String NEXTHOP_THROW = "throw";
@@ -148,10 +164,14 @@ interface INetd {
   const int PERMISSION_INTERNET = 4;
   const int PERMISSION_UPDATE_DEVICE_STATS = 8;
   const int PERMISSION_UNINSTALLED = -1;
-  /* @deprecated use FIREWALL_ALLOWLIST. */
+  /**
+   * @deprecated use FIREWALL_ALLOWLIST.
+   */
   const int FIREWALL_WHITELIST = 0;
   const int FIREWALL_ALLOWLIST = 0;
-  /* @deprecated use FIREWALL_DENYLIST. */
+  /**
+   * @deprecated use FIREWALL_DENYLIST.
+   */
   const int FIREWALL_BLACKLIST = 1;
   const int FIREWALL_DENYLIST = 1;
   const int FIREWALL_RULE_ALLOW = 1;
