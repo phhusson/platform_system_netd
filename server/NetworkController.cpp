@@ -829,10 +829,9 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
             mProtectableUsers.find(uid) == mProtectableUsers.end()) {
         return -EPERM;
     }
-    // Anyone can use unreachable network if they want. That being said, PANS should be the only
-    // user so far.
+    // Only apps that are configured as "no default network" can use the unreachable network.
     if (network->isUnreachable()) {
-        return 0;
+        return network->appliesToUser(uid) ? 0 : -EPERM;
     }
     // If the UID wants to use a physical network and it has a UID range that includes the UID, the
     // UID has permission to use it regardless of whether the permission bits match.
