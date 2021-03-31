@@ -600,7 +600,8 @@ int isWrongNetworkForUidRanges(unsigned netId, Network* network) {
         return -ENONET;
     }
     if (!network->canAddUsers()) {
-        ALOGE("cannot add/remove users to/from network %u, type %d", netId, network->getType());
+        ALOGE("cannot add/remove users to/from %s network %u", network->getTypeString().c_str(),
+              netId);
         return -EINVAL;
     }
     return 0;

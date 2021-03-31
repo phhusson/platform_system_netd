@@ -27,20 +27,12 @@ namespace android::net {
 // A Network represents a collection of interfaces participating as a single administrative unit.
 class Network {
 public:
-    enum Type {
-        DUMMY,
-        LOCAL,
-        PHYSICAL,
-        UNREACHABLE,
-        VIRTUAL,
-    };
-
     // You MUST ensure that no interfaces are still assigned to this network, say by calling
     // clearInterfaces(), before deleting it. This is because interface removal may fail. If we
     // automatically removed interfaces in the destructor, you wouldn't know if it failed.
     virtual ~Network();
 
-    virtual Type getType() const = 0;
+    virtual std::string getTypeString() const = 0;
     unsigned getNetId() const;
 
     bool hasInterface(const std::string& interface) const;

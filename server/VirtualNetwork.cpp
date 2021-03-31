@@ -31,10 +31,6 @@ VirtualNetwork::VirtualNetwork(unsigned netId, bool secure) : Network(netId, sec
 
 VirtualNetwork::~VirtualNetwork() {}
 
-Network::Type VirtualNetwork::getType() const {
-    return VIRTUAL;
-}
-
 int VirtualNetwork::addUsers(const UidRanges& uidRanges) {
     if (hasInvalidUidRanges(uidRanges)) {
         return -EINVAL;

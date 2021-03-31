@@ -39,7 +39,7 @@ public:
     bool canAddUsers() override { return true; }
 
   private:
-    Type getType() const override;
+    std::string getTypeString() const override { return "VIRTUAL"; };
     [[nodiscard]] int addInterface(const std::string& interface) override;
     [[nodiscard]] int removeInterface(const std::string& interface) override;
 };
