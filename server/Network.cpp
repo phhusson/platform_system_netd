@@ -61,28 +61,7 @@ std::string Network::toString() const {
     const char kSeparator[] = " ";
     std::stringstream repr;
 
-    repr << mNetId;
-
-    repr << kSeparator;
-    switch (getType()) {
-        case DUMMY:
-            repr << "DUMMY";
-            break;
-        case LOCAL:
-            repr << "LOCAL";
-            break;
-        case PHYSICAL:
-            repr << "PHYSICAL";
-            break;
-        case UNREACHABLE:
-            repr << "UNREACHABLE";
-            break;
-        case VIRTUAL:
-            repr << "VIRTUAL";
-            break;
-        default:
-            repr << "unknown";
-    }
+    repr << mNetId << kSeparator << getTypeString();
 
     if (mInterfaces.size() > 0) {
         repr << kSeparator << android::base::Join(mInterfaces, ",");

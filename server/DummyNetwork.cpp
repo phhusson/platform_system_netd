@@ -39,9 +39,5 @@ DummyNetwork::DummyNetwork(unsigned netId) : Network(netId) {
 DummyNetwork::~DummyNetwork() {
 }
 
-Network::Type DummyNetwork::getType() const {
-    return DUMMY;
-}
-
 }  // namespace net
 }  // namespace android
