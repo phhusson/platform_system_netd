@@ -56,10 +56,10 @@ public:
     [[nodiscard]] virtual int addUsers(const UidRanges&) { return -EINVAL; };
     [[nodiscard]] virtual int removeUsers(const UidRanges&) { return -EINVAL; };
     bool isSecure() const;
-    bool isPhysical() { return getType() == PHYSICAL; }
-    bool isUnreachable() { return getType() == UNREACHABLE; }
-    bool isVirtual() { return getType() == VIRTUAL; }
-    bool canAddUsers() { return isPhysical() || isVirtual() || isUnreachable(); }
+    virtual bool isPhysical() { return false; }
+    virtual bool isUnreachable() { return false; }
+    virtual bool isVirtual() { return false; }
+    virtual bool canAddUsers() { return false; }
 
 protected:
     explicit Network(unsigned netId, bool mSecure = false);
