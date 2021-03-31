@@ -29,7 +29,7 @@ class UnreachableNetwork : public Network {
     bool canAddUsers() override { return true; }
 
   private:
-    Type getType() const override;
+    std::string getTypeString() const override { return "UNREACHABLE"; };
 };
 
 }  // namespace android::net
