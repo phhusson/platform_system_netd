@@ -31,10 +31,6 @@ LocalNetwork::LocalNetwork(unsigned netId) : Network(netId) {
 LocalNetwork::~LocalNetwork() {
 }
 
-Network::Type LocalNetwork::getType() const {
-    return LOCAL;
-}
-
 int LocalNetwork::addInterface(const std::string& interface) {
     if (hasInterface(interface)) {
         return 0;
