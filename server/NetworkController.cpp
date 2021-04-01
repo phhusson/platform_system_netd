@@ -141,6 +141,7 @@ int NetworkController::DelegateImpl::modifyFallthrough(const std::string& physic
 NetworkController::NetworkController() :
         mDelegateImpl(new NetworkController::DelegateImpl(this)), mDefaultNetId(NETID_UNSET),
         mProtectableUsers({AID_VPN}) {
+    gLog.info("enter NetworkController ctor");
     mNetworks[LOCAL_NET_ID] = new LocalNetwork(LOCAL_NET_ID);
     mNetworks[DUMMY_NET_ID] = new DummyNetwork(DUMMY_NET_ID);
     mNetworks[UNREACHABLE_NET_ID] = new UnreachableNetwork(UNREACHABLE_NET_ID);
@@ -158,6 +159,7 @@ NetworkController::NetworkController() :
             }
         }
     }
+    gLog.info("leave NetworkController ctor");
 }
 
 unsigned NetworkController::getDefaultNetwork() const {

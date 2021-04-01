@@ -157,11 +157,13 @@ int TetherController::DnsmasqState::sendAllState(int daemonFd) const {
 }
 
 TetherController::TetherController() {
+    gLog.info("enter TetherController ctor");
     if (inBpToolsMode()) {
         enableForwarding(BP_TOOLS_MODE);
     } else {
         setIpFwdEnabled();
     }
+    gLog.info("leave TetherController ctor");
 }
 
 bool TetherController::setIpFwdEnabled() {
