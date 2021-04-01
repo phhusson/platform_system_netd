@@ -254,8 +254,8 @@ uint32_t NetworkController::getNetworkForDnsLocked(unsigned* netId, uid_t uid) c
 }
 
 // Returns the NetId that a given UID would use if no network is explicitly selected. Specifically,
-// the VPN that applies to the UID if any; Otherwise, the unreachable network that applies to the
-// UID; Otherwise, the default network for UID; lastly, the default network.
+// the VPN that applies to the UID if any; Otherwise, the default network for UID; Otherwise the
+// unreachable network that applies to the UID; lastly, the default network.
 unsigned NetworkController::getNetworkForUser(uid_t uid) const {
     ScopedRLock lock(mRWLock);
     if (VirtualNetwork* virtualNetwork = getVirtualNetworkForUserLocked(uid)) {
@@ -600,7 +600,8 @@ int isWrongNetworkForUidRanges(unsigned netId, Network* network) {
         return -ENONET;
     }
     if (!network->canAddUsers()) {
-        ALOGE("cannot add/remove users to/from network %u, type %d", netId, network->getType());
+        ALOGE("cannot add/remove users to/from %s network %u", network->getTypeString().c_str(),
+              netId);
         return -EINVAL;
     }
     return 0;
@@ -777,12 +778,7 @@ VirtualNetwork* NetworkController::getVirtualNetworkForUserLocked(uid_t uid) con
 }
 
 Network* NetworkController::getPhysicalOrUnreachableNetworkForUserLocked(uid_t uid) const {
-    // Unreachable network take precedence over OEM-paid network.
-    auto iter = mNetworks.find(UNREACHABLE_NET_ID);
-    if (iter != mNetworks.end() && iter->second->appliesToUser(uid)) {
-        return iter->second;
-    }
-
+    // OEM-paid network take precedence over the unreachable network.
     for (const auto& [_, network] : mNetworks) {
         if (network->isPhysical() && network->appliesToUser(uid)) {
             // Return the first physical network that matches UID.
@@ -790,6 +786,11 @@ Network* NetworkController::getPhysicalOrUnreachableNetworkForUserLocked(uid_t u
             // This is a configuration error.
             return network;
         }
+    }
+
+    auto iter = mNetworks.find(UNREACHABLE_NET_ID);
+    if (iter != mNetworks.end() && iter->second->appliesToUser(uid)) {
+        return iter->second;
     }
     return nullptr;
 }
@@ -829,15 +830,14 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
             mProtectableUsers.find(uid) == mProtectableUsers.end()) {
         return -EPERM;
     }
-    // Anyone can use unreachable network if they want. That being said, PANS should be the only
-    // user so far.
-    if (network->isUnreachable()) {
-        return 0;
-    }
     // If the UID wants to use a physical network and it has a UID range that includes the UID, the
     // UID has permission to use it regardless of whether the permission bits match.
     if (network->isPhysical() && network->appliesToUser(uid)) {
         return 0;
+    }
+    // Only apps that are configured as "no default network" can use the unreachable network.
+    if (network->isUnreachable()) {
+        return network->appliesToUser(uid) ? 0 : -EPERM;
     }
     // Check whether the UID's permission bits are sufficient to use the network.
     // Because the permission of the system default network is PERMISSION_NONE(0x0), apps can always

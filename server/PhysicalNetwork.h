@@ -44,9 +44,11 @@ class PhysicalNetwork : public Network {
     [[nodiscard]] int removeAsDefault();
     [[nodiscard]] int addUsers(const UidRanges& uidRanges) override;
     [[nodiscard]] int removeUsers(const UidRanges& uidRanges) override;
+    bool isPhysical() override { return true; }
+    bool canAddUsers() override { return true; }
 
   private:
-    Type getType() const override;
+    std::string getTypeString() const override { return "PHYSICAL"; };
     [[nodiscard]] int addInterface(const std::string& interface) override;
     [[nodiscard]] int removeInterface(const std::string& interface) override;
     int destroySocketsLackingPermission(Permission permission);

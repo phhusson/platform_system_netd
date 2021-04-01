@@ -55,6 +55,7 @@ const uint32_t RULE_PRIORITY_IMPLICIT_NETWORK        = 23000;
 const uint32_t RULE_PRIORITY_BYPASSABLE_VPN          = 24000;
 // reserved for RULE_PRIORITY_UID_VPN_FALLTHROUGH    = 25000;
 const uint32_t RULE_PRIORITY_VPN_FALLTHROUGH         = 26000;
+const uint32_t RULE_PRIORITY_UID_DEFAULT_NETWORK     = 27000;
 // Rule used when framework wants to disable default network from specified applications. There will
 // be a small interval the same uid range exists in both UID_DEFAULT_UNREACHABLE and
 // UID_DEFAULT_NETWORK when framework is switching user preferences.
@@ -62,12 +63,14 @@ const uint32_t RULE_PRIORITY_VPN_FALLTHROUGH         = 26000;
 // framework --> netd
 // step 1: set uid to unreachable network
 // step 2: remove uid from OEM-paid network list
+// or
+// step 1: add uid to OEM-paid network list
+// step 2: remove uid from unreachable network
 //
-// We have this priority so that the default network for apps will be blocked right after step 1.
-// The rule also provides flexibility, just in case we need to support the same uid constantly
-// exists in both UID_DEFAULT_UNREACHABLE and UID_DEFAULT_NETWORK in the future.
-const uint32_t RULE_PRIORITY_UID_DEFAULT_UNREACHABLE = 27000;
-const uint32_t RULE_PRIORITY_UID_DEFAULT_NETWORK     = 28000;
+// The priority is lower than UID_DEFAULT_NETWORK. Otherwise, the app will be told by
+// ConnectivityService that it has a network in step 1 of the second case. But if it tries to use
+// the network, it will not work. That will potentially cause a user-visible error.
+const uint32_t RULE_PRIORITY_UID_DEFAULT_UNREACHABLE = 28000;
 const uint32_t RULE_PRIORITY_DEFAULT_NETWORK         = 29000;
 const uint32_t RULE_PRIORITY_UNREACHABLE             = 32000;
 // clang-format on
