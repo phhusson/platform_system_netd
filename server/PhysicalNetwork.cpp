@@ -187,10 +187,6 @@ int PhysicalNetwork::removeUsers(const UidRanges& uidRanges) {
     return 0;
 }
 
-Network::Type PhysicalNetwork::getType() const {
-    return PHYSICAL;
-}
-
 int PhysicalNetwork::addInterface(const std::string& interface) {
     if (hasInterface(interface)) {
         return 0;
