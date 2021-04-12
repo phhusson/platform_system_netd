@@ -1049,7 +1049,7 @@ int NdcDispatcher::NetworkCommand::runCommand(NdcClient* cli, int argc, char** a
             return syntaxError(cli, "Missing argument");
         }
         unsigned netId = stringToNetId(argv[2]);
-        if (argc == 6 && !strcmp(argv[3], "vpn")) {
+        if (argc == 5 && !strcmp(argv[3], "vpn")) {
             bool secure = strtol(argv[4], nullptr, 2);
             if (Status status = mNetd->networkCreateVpn(netId, secure); !status.isOk()) {
                 return operationError(cli, "createVirtualNetwork() failed",
