@@ -245,17 +245,27 @@ TEST_F(NetdBinderTest, IsAlive) {
     ASSERT_TRUE(isAlive);
 }
 
-void testNetworkExistsButCannotConnect(const sp<INetd>& netd, const int netId) {
+bool testNetworkExistsButCannotConnect(const sp<INetd>& netd, TunInterface& ifc, const int netId) {
     // If this network exists, we should definitely not be able to create it.
     // Note that this networkCreatePhysical is never allowed to create reserved network IDs, so
     // this call may fail for other reasons than the network already existing.
     EXPECT_FALSE(netd->networkCreatePhysical(netId, INetd::PERMISSION_NONE).isOk());
+    // Test if the network exist by adding interface. INetd has no dedicated method to query. When
+    // the network exists and the interface can be added, the function succeeds. When the network
+    // exists but the interface cannot be added, it fails with EINVAL, otherwise it is ENONET.
+    binder::Status status = netd->networkAddInterface(netId, ifc.name());
+    if (status.isOk()) {  // clean up
+        EXPECT_TRUE(netd->networkRemoveInterface(netId, ifc.name()).isOk());
+    } else if (status.serviceSpecificErrorCode() == ENONET) {
+        return false;
+    }
 
     const sockaddr_in6 sin6 = {.sin6_family = AF_INET6,
                                .sin6_addr = {{.u6_addr32 = {htonl(0x20010db8), 0, 0, 0}}},
                                .sin6_port = 53};
     const int s = socket(AF_INET6, SOCK_DGRAM, 0);
-    ASSERT_NE(-1, s);
+    EXPECT_NE(-1, s);
+    if (s == -1) return true;
     Fwmark fwmark;
     fwmark.explicitlySelected = true;
     fwmark.netId = netId;
@@ -265,12 +275,14 @@ void testNetworkExistsButCannotConnect(const sp<INetd>& netd, const int netId) {
     EXPECT_EQ(-1, ret);
     EXPECT_EQ(ENETUNREACH, err);
     close(s);
+    return true;
 }
 
 TEST_F(NetdBinderTest, InitialNetworksExist) {
-    testNetworkExistsButCannotConnect(mNetd, INetd::DUMMY_NET_ID);
-    testNetworkExistsButCannotConnect(mNetd, INetd::LOCAL_NET_ID);
-    testNetworkExistsButCannotConnect(mNetd, INetd::UNREACHABLE_NET_ID);
+    EXPECT_TRUE(testNetworkExistsButCannotConnect(mNetd, sTun, INetd::DUMMY_NET_ID));
+    EXPECT_TRUE(testNetworkExistsButCannotConnect(mNetd, sTun, INetd::LOCAL_NET_ID));
+    EXPECT_TRUE(testNetworkExistsButCannotConnect(mNetd, sTun, INetd::UNREACHABLE_NET_ID));
+    EXPECT_FALSE(testNetworkExistsButCannotConnect(mNetd, sTun, 77 /* not exist */));
 }
 
 TEST_F(NetdBinderTest, IpSecTunnelInterface) {
