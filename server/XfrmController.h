@@ -402,7 +402,7 @@ public:
     static int fillNlAttrUserTemplate(const XfrmSpInfo& record, nlattr_user_tmpl* tmpl);
     static int fillUserPolicyId(const XfrmSpInfo& record, xfrm_userpolicy_id* policy_id);
     static int fillNlAttrXfrmMark(const XfrmCommonInfo& record, nlattr_xfrm_mark* mark);
-    static int fillNlAttrXfrmOutputMark(const __u32 underlyingNetId,
+    static int fillNlAttrXfrmOutputMark(const XfrmSaInfo& record,
                                         nlattr_xfrm_output_mark* output_mark);
     static int fillNlAttrXfrmIntfId(const __u32 intf_id_value, nlattr_xfrm_interface_id* intf_id);
     static int fillNlAttrXfrmMigrate(const XfrmMigrateInfo& record,

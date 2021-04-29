@@ -1025,7 +1025,7 @@ netdutils::Status XfrmController::updateSecurityAssociation(const XfrmSaInfo& re
     len = iov[MARK].iov_len = fillNlAttrXfrmMark(record, &xfrmmark);
     iov[MARK_PAD].iov_len = NLA_ALIGN(len) - len;
 
-    len = iov[OUTPUT_MARK].iov_len = fillNlAttrXfrmOutputMark(record.netId, &xfrmoutputmark);
+    len = iov[OUTPUT_MARK].iov_len = fillNlAttrXfrmOutputMark(record, &xfrmoutputmark);
     iov[OUTPUT_MARK_PAD].iov_len = NLA_ALIGN(len) - len;
 
     len = iov[ENCAP].iov_len = fillNlAttrXfrmEncapTmpl(record, &encap);
@@ -1381,24 +1381,30 @@ int XfrmController::fillNlAttrXfrmMark(const XfrmCommonInfo& record, nlattr_xfrm
 
 // This function sets the output mark (or set-mark in newer kernels) to that of the underlying
 // Network's netid. This allows outbound IPsec Tunnel mode packets to be correctly directed to a
-// preselected underlying Network. Packet as marked as protected from VPNs and have a network
-// explicitly selected to prevent interference or routing loops. Also set permission flag to
-// PERMISSION_SYSTEM to ensure we can use background/restricted networks. Permission to use
-// restricted networks is checked in IpSecService.
-int XfrmController::fillNlAttrXfrmOutputMark(const __u32 underlyingNetId,
+// preselected underlying Network. Outbound packets are marked as protected from VPNs and have a
+// network explicitly selected to prevent interference or routing loops. Also sets permission flag
+// to PERMISSION_SYSTEM to allow use of background/restricted networks. Inbound packets have all
+// the flags and fields cleared to simulate the decapsulated packet being a fresh, unseen packet.
+int XfrmController::fillNlAttrXfrmOutputMark(const XfrmSaInfo& record,
                                              nlattr_xfrm_output_mark* output_mark) {
-    // Do not set if we were not given an output mark
-    if (underlyingNetId == 0) {
+    // Only set for tunnel mode transforms
+    if (record.mode != XfrmMode::TUNNEL) {
         return 0;
     }
 
     Fwmark fwmark;
-    fwmark.netId = underlyingNetId;
 
-    // TODO: Rework this to more accurately follow the underlying network
-    fwmark.permission = PERMISSION_SYSTEM;
-    fwmark.explicitlySelected = true;
-    fwmark.protectedFromVpn = true;
+    // Only outbound transforms have an underlying network set.
+    if (record.netId != 0) {
+        fwmark.netId = record.netId;
+        fwmark.permission = PERMISSION_SYSTEM;
+        fwmark.explicitlySelected = true;
+        fwmark.protectedFromVpn = true;
+    }
+
+    // Else (inbound transforms), reset to default mark (empty); UID billing for inbound tunnel mode
+    // transforms are exclusively done on inner packet, and therefore can never have been set.
+
     output_mark->outputMark = fwmark.intValue;
 
     int len = NLA_HDRLEN + sizeof(__u32);
