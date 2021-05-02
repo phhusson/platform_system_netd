@@ -894,7 +894,7 @@ TEST_F(NetdBinderTest, InterfaceAddRemoveAddress) {
 }
 
 TEST_F(NetdBinderTest, GetProcSysNet) {
-    const char LOOPBACK[] = "lo";
+    const char* LOOPBACK = "lo";
     static const struct {
         const int ipversion;
         const int which;
