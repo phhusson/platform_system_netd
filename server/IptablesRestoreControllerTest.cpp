@@ -123,7 +123,7 @@ public:
     close(fd);
   }
 
-  unsigned getRssPages(pid_t pid) {
+  int getRssPages(pid_t pid) {
       std::string statPath = getProcStatPath(pid);
       int fd = open(statPath.c_str(), O_RDONLY | O_CLOEXEC);
       EXPECT_NE(-1, fd) << "Unexpected error opening " << statPath << ": " << strerror(errno);
@@ -362,10 +362,10 @@ TEST_F(IptablesRestoreControllerTest, TestMemoryLeak) {
     EXPECT_EQ(pid6, getIpRestorePid(IptablesRestoreController::IP6TABLES_PROCESS));
 
     // Check how much RAM the processes are using.
-    unsigned pages4 = getRssPages(pid4);
-    ASSERT_NE(0U, pages4);
-    unsigned pages6 = getRssPages(pid6);
-    ASSERT_NE(0U, pages6);
+    int pages4 = getRssPages(pid4);
+    ASSERT_NE(0, pages4);
+    int pages6 = getRssPages(pid6);
+    ASSERT_NE(0, pages6);
 
     // Run the command a few times and check that it doesn't crash.
     for (int i = 0; i < 10; i++) {
@@ -374,9 +374,9 @@ TEST_F(IptablesRestoreControllerTest, TestMemoryLeak) {
     EXPECT_EQ(pid4, getIpRestorePid(IptablesRestoreController::IPTABLES_PROCESS));
     EXPECT_EQ(pid6, getIpRestorePid(IptablesRestoreController::IP6TABLES_PROCESS));
 
-    // Don't allow a leak of more than 5 pages (20kB).
+    // Don't allow a leak of more than 25 pages (100kB).
     // This is more than enough for accuracy: the leak in b/162925719 fails with:
-    // Expected: (5U) >= (getRssPages(pid4) - pages4), actual: 5 vs 66
-    EXPECT_GE(5U, getRssPages(pid4) - pages4) << "iptables-restore leaked too many pages";
-    EXPECT_GE(5U, getRssPages(pid6) - pages6) << "ip6tables-restore leaked too many pages";
+    // Expected: (25U) >= (getRssPages(pid4) - pages4), actual: 5 vs 66
+    EXPECT_GE(25, getRssPages(pid4) - pages4) << "iptables-restore leaked too many pages";
+    EXPECT_GE(25, getRssPages(pid6) - pages6) << "ip6tables-restore leaked too many pages";
 }
