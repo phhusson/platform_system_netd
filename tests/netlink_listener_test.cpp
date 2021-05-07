@@ -157,7 +157,10 @@ TEST_F(NetlinkListenerTest, TestAllSocketUntagged) {
     checkMassiveSocketDestroy(100, false);
 }
 
-TEST_F(NetlinkListenerTest, TestSkDestroyError) {
+// Disabled because flaky on blueline-userdebug; this test relies on the main thread
+// winning a race against the NetlinkListener::run() thread. There's no way to ensure
+// things will be scheduled the same way across all architectures and test environments.
+TEST_F(NetlinkListenerTest, DISABLED_TestSkDestroyError) {
     bool needRetry = false;
     int retryCount = 0;
     do {
