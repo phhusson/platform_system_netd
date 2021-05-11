@@ -12,7 +12,7 @@ java_library {
     sdk_version: "system_current",
     min_sdk_version: "29",
     static_libs: [
-        "netd_aidl_interface-V5-java",
+        "netd_aidl_interface-V6-java",
     ],
     apex_available: [
         "//apex_available:platform", // used from services.net
@@ -36,6 +36,11 @@ cc_library_static {
 cc_library_static {
     name: "netd_aidl_interface-lateststable-ndk_platform",
     whole_static_libs: [
+        // TODO: bump V6 when DNS resolver no longer automerges to mainline-prod. This is not
+        // currently possible because compiling against deprecated methods generates a warning,
+        // and the DnsResolver tests compile against lateststable-ndk_platform and use -Werror.
+        // Those tests cannot be updated to call the new method because the DnsResolver code
+        // automerges to mainline-prod, which does not have the new method.
         "netd_aidl_interface-V5-ndk_platform",
     ],
     apex_available: [
@@ -47,7 +52,7 @@ cc_library_static {
 cc_library_static {
     name: "netd_aidl_interface-lateststable-cpp",
     whole_static_libs: [
-        "netd_aidl_interface-V5-cpp",
+        "netd_aidl_interface-V6-cpp",
     ],
 }
 
@@ -100,6 +105,7 @@ aidl_interface {
         "3",
         "4",
         "5",
+        "6",
     ],
 }
 
@@ -218,7 +224,7 @@ cc_library_static {
         "libqtaguid",
         "libssl",
         "libsysutils",
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
         "netd_event_listener_interface-V1-cpp",
     ],
     aidl: {
@@ -261,7 +267,7 @@ cc_binary {
         "libselinux",
         "libsysutils",
         "libutils",
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
         "netd_event_listener_interface-V1-cpp",
         "oemnetd_aidl_interface-cpp",
     ],
@@ -312,7 +318,7 @@ cc_binary {
         "libutils",
         "libbinder",
         "dnsresolver_aidl_interface-V7-cpp",
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
     ],
     srcs: [
         "ndc.cpp",
@@ -358,7 +364,7 @@ cc_test {
         "libnetd_server",
         "libnetd_test_tun_interface",
         "libqtaguid",
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
         "netd_event_listener_interface-V1-cpp",
     ],
     shared_libs: [
