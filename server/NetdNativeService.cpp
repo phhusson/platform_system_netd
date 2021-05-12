@@ -52,6 +52,7 @@
 
 using android::base::StringPrintf;
 using android::base::WriteStringToFile;
+using android::net::NativeNetworkType;
 using android::net::TetherOffloadRuleParcel;
 using android::net::TetherStatsParcel;
 using android::net::UidRangeParcel;
@@ -345,15 +346,34 @@ binder::Status NetdNativeService::bandwidthRemoveNiceApp(int32_t uid) {
     return statusFromErrcode(res);
 }
 
+// TODO: Remove this function when there are no users. Currently, it is still used by DNS resolver
+// tests.
 binder::Status NetdNativeService::networkCreatePhysical(int32_t netId, int32_t permission) {
     ENFORCE_NETWORK_STACK_PERMISSIONS();
     int ret = gCtls->netCtrl.createPhysicalNetwork(netId, convertPermission(permission));
     return statusFromErrcode(ret);
 }
 
+// TODO: Remove this function when there are no users. Currently, it is still used by DNS resolver
+// tests.
 binder::Status NetdNativeService::networkCreateVpn(int32_t netId, bool secure) {
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-    int ret = gCtls->netCtrl.createVirtualNetwork(netId, secure);
+    // The value of vpnType does not matter here, because it is not used in AOSP and is only
+    // implemented by OEMs. Also, the RPC is going to deprecate. Just pick a value defined in INetd
+    // as default.
+    int ret = gCtls->netCtrl.createVirtualNetwork(netId, secure, NativeVpnType::LEGACY);
+    return statusFromErrcode(ret);
+}
+
+binder::Status NetdNativeService::networkCreate(const NativeNetworkConfig& config) {
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
+    int ret = -EINVAL;
+    if (config.networkType == NativeNetworkType::PHYSICAL) {
+        ret = gCtls->netCtrl.createPhysicalNetwork(config.netId,
+                                                   convertPermission(config.permission));
+    } else if (config.networkType == NativeNetworkType::VIRTUAL) {
+        ret = gCtls->netCtrl.createVirtualNetwork(config.netId, config.secure, config.vpnType);
+    }
     return statusFromErrcode(ret);
 }
 

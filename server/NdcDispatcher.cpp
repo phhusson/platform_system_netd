@@ -1051,7 +1051,10 @@ int NdcDispatcher::NetworkCommand::runCommand(NdcClient* cli, int argc, char** a
         unsigned netId = stringToNetId(argv[2]);
         if (argc == 5 && !strcmp(argv[3], "vpn")) {
             bool secure = strtol(argv[4], nullptr, 2);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             if (Status status = mNetd->networkCreateVpn(netId, secure); !status.isOk()) {
+#pragma clang diagnostic pop
                 return operationError(cli, "createVirtualNetwork() failed",
                                       status.serviceSpecificErrorCode());
             }
@@ -1065,7 +1068,10 @@ int NdcDispatcher::NetworkCommand::runCommand(NdcClient* cli, int argc, char** a
                     return syntaxError(cli, "Unknown permission");
                 }
             }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             if (Status status = mNetd->networkCreatePhysical(netId, permission); !status.isOk()) {
+#pragma clang diagnostic pop
                 return operationError(cli, "createPhysicalNetwork() failed",
                                       status.serviceSpecificErrorCode());
             }
