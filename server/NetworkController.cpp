@@ -437,7 +437,7 @@ int NetworkController::createPhysicalOemNetwork(Permission permission, unsigned 
     return ret;
 }
 
-int NetworkController::createVirtualNetwork(unsigned netId, bool secure) {
+int NetworkController::createVirtualNetwork(unsigned netId, bool secure, NativeVpnType vpnType) {
     ScopedWLock lock(mRWLock);
 
     if (!(MIN_NET_ID <= netId && netId <= MAX_NET_ID)) {
@@ -448,6 +448,11 @@ int NetworkController::createVirtualNetwork(unsigned netId, bool secure) {
     if (isValidNetworkLocked(netId)) {
         ALOGE("duplicate netId %u", netId);
         return -EEXIST;
+    }
+
+    if (vpnType < NativeVpnType::SERVICE || NativeVpnType::OEM < vpnType) {
+        ALOGE("invalid vpnType %d", static_cast<int>(vpnType));
+        return -EINVAL;
     }
 
     if (int ret = modifyFallthroughLocked(netId, true)) {

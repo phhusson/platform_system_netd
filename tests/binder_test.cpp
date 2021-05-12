@@ -106,6 +106,9 @@ using android::net::INetd;
 using android::net::InterfaceConfigurationParcel;
 using android::net::InterfaceController;
 using android::net::MarkMaskParcel;
+using android::net::NativeNetworkConfig;
+using android::net::NativeNetworkType;
+using android::net::NativeVpnType;
 using android::net::RULE_PRIORITY_DEFAULT_NETWORK;
 using android::net::RULE_PRIORITY_EXPLICIT_NETWORK;
 using android::net::RULE_PRIORITY_PROHIBIT_NON_VPN;
@@ -245,11 +248,29 @@ TEST_F(NetdBinderTest, IsAlive) {
     ASSERT_TRUE(isAlive);
 }
 
+namespace {
+
+NativeNetworkConfig makeNativeNetworkConfig(int netId, NativeNetworkType networkType,
+                                            int permission, bool secure) {
+    NativeNetworkConfig config = {};
+    config.netId = netId;
+    config.networkType = networkType;
+    config.permission = permission;
+    config.secure = secure;
+    // The vpnType doesn't matter in AOSP. Just pick a well defined one from INetd.
+    config.vpnType = NativeVpnType::PLATFORM;
+    return config;
+}
+
+}  // namespace
+
 bool testNetworkExistsButCannotConnect(const sp<INetd>& netd, TunInterface& ifc, const int netId) {
     // If this network exists, we should definitely not be able to create it.
-    // Note that this networkCreatePhysical is never allowed to create reserved network IDs, so
+    // Note that this networkCreate is never allowed to create reserved network IDs, so
     // this call may fail for other reasons than the network already existing.
-    EXPECT_FALSE(netd->networkCreatePhysical(netId, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(netId, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_FALSE(netd->networkCreate(config).isOk());
     // Test if the network exist by adding interface. INetd has no dedicated method to query. When
     // the network exists and the interface can be added, the function succeeds. When the network
     // exists but the interface cannot be added, it fails with EINVAL, otherwise it is ENONET.
@@ -567,11 +588,17 @@ UidRangeParcel makeUidRangeParcel(int start, int stop) {
 }  // namespace
 
 TEST_F(NetdBinderTest, NetworkInterfaces) {
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
-    EXPECT_EQ(EEXIST, mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE)
-                              .serviceSpecificErrorCode());
-    EXPECT_EQ(EEXIST, mNetd->networkCreateVpn(TEST_NETID1, true).serviceSpecificErrorCode());
-    EXPECT_TRUE(mNetd->networkCreateVpn(TEST_NETID2, true).isOk());
+    auto config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                          INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
+    EXPECT_EQ(EEXIST, mNetd->networkCreate(config).serviceSpecificErrorCode());
+
+    config.networkType = NativeNetworkType::VIRTUAL;
+    config.secure = true;
+    EXPECT_EQ(EEXIST, mNetd->networkCreate(config).serviceSpecificErrorCode());
+
+    config.netId = TEST_NETID2;
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
 
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
     EXPECT_EQ(EBUSY,
@@ -584,8 +611,10 @@ TEST_F(NetdBinderTest, NetworkInterfaces) {
 }
 
 TEST_F(NetdBinderTest, NetworkUidRules) {
-    EXPECT_TRUE(mNetd->networkCreateVpn(TEST_NETID1, true).isOk());
-    EXPECT_EQ(EEXIST, mNetd->networkCreateVpn(TEST_NETID1, true).serviceSpecificErrorCode());
+    auto config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::VIRTUAL,
+                                          INetd::PERMISSION_NONE, true);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
+    EXPECT_EQ(EEXIST, mNetd->networkCreate(config).serviceSpecificErrorCode());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     std::vector<UidRangeParcel> uidRanges = {makeUidRangeParcel(BASE_UID + 8005, BASE_UID + 8012),
@@ -1284,7 +1313,9 @@ TEST_F(NetdBinderTest, ClatdStartStop) {
     EXPECT_EQ(ENODEV, status.serviceSpecificErrorCode());
 
     // ... so create a test physical network and add our tun to it.
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     // Prefix must be 96 bits long.
@@ -1448,9 +1479,13 @@ TEST_F(NetdBinderTest, TestIpfwdEnableDisableStatusForwarding) {
 
 TEST_F(NetdBinderTest, TestIpfwdAddRemoveInterfaceForward) {
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    auto config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                          INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID2, INetd::PERMISSION_NONE).isOk());
+
+    config.netId = TEST_NETID2;
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID2, sTun2.name()).isOk());
 
     binder::Status status = mNetd->ipfwdAddInterfaceForward(sTun.name(), sTun2.name());
@@ -1566,7 +1601,9 @@ TEST_F(NetdBinderTest, BandwidthSetRemoveInterfaceQuota) {
     long testQuotaBytes = 5550;
 
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     binder::Status status = mNetd->bandwidthSetInterfaceQuota(sTun.name(), testQuotaBytes);
@@ -1584,7 +1621,9 @@ TEST_F(NetdBinderTest, BandwidthSetRemoveInterfaceQuota) {
 TEST_F(NetdBinderTest, BandwidthSetRemoveInterfaceAlert) {
     long testAlertBytes = 373;
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
     // Need to have a prior interface quota set to set an alert
     binder::Status status = mNetd->bandwidthSetInterfaceQuota(sTun.name(), testAlertBytes);
@@ -1795,7 +1834,9 @@ TEST_F(NetdBinderTest, NetworkAddRemoveRouteUserPermission) {
     const std::vector<int32_t> testUids = {testUid};
 
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     // Setup route for testing nextHop
@@ -1949,7 +1990,9 @@ TEST_F(NetdBinderTest, NetworkAddRemoveRouteUserPermission) {
 
 TEST_F(NetdBinderTest, NetworkPermissionDefault) {
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     // Get current default network NetId
@@ -2598,7 +2641,9 @@ TEST_F(NetdBinderTest, InterfaceGetCfg) {
     InterfaceConfigurationParcel interfaceCfgResult;
 
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     binder::Status status = mNetd->interfaceGetCfg(sTun.name(), &interfaceCfgResult);
@@ -2617,7 +2662,9 @@ TEST_F(NetdBinderTest, InterfaceSetCfg) {
     std::vector<std::string> downFlags = {"down"};
 
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     // Set tun interface down.
@@ -2655,7 +2702,9 @@ TEST_F(NetdBinderTest, InterfaceClearAddr) {
     std::vector<std::string> noFlags{};
 
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     auto interfaceCfg = makeInterfaceCfgParcel(sTun.name(), testAddr, testPrefixLength, noFlags);
@@ -2673,7 +2722,9 @@ TEST_F(NetdBinderTest, InterfaceClearAddr) {
 
 TEST_F(NetdBinderTest, InterfaceSetEnableIPv6) {
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     // disable
@@ -2694,7 +2745,9 @@ TEST_F(NetdBinderTest, InterfaceSetMtu) {
     const int testMtu = 1200;
 
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     binder::Status status = mNetd->interfaceSetMtu(sTun.name(), testMtu);
@@ -2980,7 +3033,9 @@ TEST_F(NetdBinderTest, NDC) {
     }
 
     // Add test physical network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
 
     for (const auto& td : kTestData) {
@@ -3070,11 +3125,16 @@ void NetdBinderTest::createVpnNetworkWithUid(bool secure, uid_t uid, int vpnNetI
     sTun2.init();
 
     // Create physical network with fallthroughNetId but not set it as default network
-    EXPECT_TRUE(mNetd->networkCreatePhysical(fallthroughNetId, INetd::PERMISSION_NONE).isOk());
+    auto config = makeNativeNetworkConfig(fallthroughNetId, NativeNetworkType::PHYSICAL,
+                                          INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(fallthroughNetId, sTun.name()).isOk());
 
     // Create VPN with vpnNetId
-    EXPECT_TRUE(mNetd->networkCreateVpn(vpnNetId, secure).isOk());
+    config.netId = vpnNetId;
+    config.networkType = NativeNetworkType::VIRTUAL;
+    config.secure = secure;
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
 
     // Add uid to VPN
     EXPECT_TRUE(mNetd->networkAddUidRanges(vpnNetId, {makeUidRangeParcel(uid, uid)}).isOk());
@@ -3091,14 +3151,18 @@ void NetdBinderTest::createAndSetDefaultNetwork(int netId, const std::string& in
     // backup current default network.
     ASSERT_TRUE(mNetd->networkGetDefault(&mStoredDefaultNetwork).isOk());
 
-    EXPECT_TRUE(mNetd->networkCreatePhysical(netId, permission).isOk());
+    const auto& config =
+            makeNativeNetworkConfig(netId, NativeNetworkType::PHYSICAL, permission, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(netId, interface).isOk());
     EXPECT_TRUE(mNetd->networkSetDefault(netId).isOk());
 }
 
 void NetdBinderTest::createPhysicalNetwork(int netId, const std::string& interface,
                                            int permission) {
-    EXPECT_TRUE(mNetd->networkCreatePhysical(netId, permission).isOk());
+    const auto& config =
+            makeNativeNetworkConfig(netId, NativeNetworkType::PHYSICAL, permission, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(netId, interface).isOk());
 }
 
@@ -3118,7 +3182,9 @@ void NetdBinderTest::createVpnAndOtherPhysicalNetwork(int systemDefaultNetId, in
                                                       int vpnNetId, bool secure) {
     createDefaultAndOtherPhysicalNetwork(systemDefaultNetId, otherNetId);
 
-    EXPECT_TRUE(mNetd->networkCreateVpn(vpnNetId, secure).isOk());
+    auto config = makeNativeNetworkConfig(vpnNetId, NativeNetworkType::VIRTUAL,
+                                          INetd::PERMISSION_NONE, secure);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(vpnNetId, sTun3.name()).isOk());
     EXPECT_TRUE(mNetd->networkAddRoute(vpnNetId, sTun3.name(), "2001:db8::/32", "").isOk());
 }
@@ -3362,12 +3428,15 @@ TEST_F(NetdBinderTest, GetFwmarkForNetwork) {
     ASSERT_TRUE(mNetd->networkGetDefault(&mStoredDefaultNetwork).isOk());
 
     // Add test physical network 1 and set as default network.
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    auto config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                          INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
     EXPECT_TRUE(mNetd->networkAddRoute(TEST_NETID1, sTun.name(), "2001:db8::/32", "").isOk());
     EXPECT_TRUE(mNetd->networkSetDefault(TEST_NETID1).isOk());
     // Add test physical network 2
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID2, INetd::PERMISSION_NONE).isOk());
+    config.netId = TEST_NETID2;
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID2, sTun2.name()).isOk());
 
     // Get fwmark for network 1.
@@ -3572,7 +3641,9 @@ TEST_F(NetdBinderTest, DISABLED_TetherOffloadForwarding) {
 
     // Use one of the test's tun interfaces as upstream.
     // It must be part of a network or it will not have the clsact attached.
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_NETID1, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_NETID1, sTun.name()).isOk());
     int fd1 = sTun.getFdForTesting();
     EXPECT_TRUE(tcQdiscExists(sTun.name()));
@@ -3703,14 +3774,20 @@ TEST_F(NetdBinderTest, TestServiceDump) {
     std::vector<TestData> testData;
 
     // Send some IPCs and for each one add an element to testData telling us what to expect.
-    EXPECT_TRUE(mNetd->networkCreatePhysical(TEST_DUMP_NETID, INetd::PERMISSION_NONE).isOk());
-    testData.push_back({"networkCreatePhysical(65123, 0)", "networkCreatePhysical.*65123"});
-
-    EXPECT_EQ(EEXIST, mNetd->networkCreatePhysical(TEST_DUMP_NETID, INetd::PERMISSION_NONE)
-                              .serviceSpecificErrorCode());
+    const auto& config = makeNativeNetworkConfig(TEST_DUMP_NETID, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     testData.push_back(
-            {"networkCreatePhysical(65123, 0) -> ServiceSpecificException(17, \"File exists\")",
-             "networkCreatePhysical.*65123.*17"});
+            {"networkCreate(NativeNetworkConfig{netId: 65123, networkType: PHYSICAL, "
+             "permission: 0, secure: false, vpnType: PLATFORM})",
+             "networkCreate.*65123"});
+
+    EXPECT_EQ(EEXIST, mNetd->networkCreate(config).serviceSpecificErrorCode());
+    testData.push_back(
+            {"networkCreate(NativeNetworkConfig{netId: 65123, networkType: PHYSICAL, "
+             "permission: 0, secure: false, vpnType: PLATFORM}) "
+             "-> ServiceSpecificException(17, \"File exists\")",
+             "networkCreate.*65123.*17"});
 
     EXPECT_TRUE(mNetd->networkAddInterface(TEST_DUMP_NETID, sTun.name()).isOk());
     testData.push_back({StringPrintf("networkAddInterface(65123, %s)", sTun.name().c_str()),
@@ -3889,7 +3966,9 @@ void expectUnreachableError(uid_t uid, unsigned netId, int selectionMode) {
 
 // Verify whether API reject overlapped UID ranges
 TEST_F(NetdBinderTest, PerAppDefaultNetwork_OverlappedUidRanges) {
-    EXPECT_TRUE(mNetd->networkCreatePhysical(APP_DEFAULT_NETID, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(APP_DEFAULT_NETID, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(APP_DEFAULT_NETID, sTun.name()).isOk());
 
     std::vector<UidRangeParcel> uidRanges = {makeUidRangeParcel(BASE_UID + 1, BASE_UID + 1),
@@ -3932,7 +4011,9 @@ TEST_F(NetdBinderTest, PerAppDefaultNetwork_OverlappedUidRanges) {
 
 // Verify whether IP rules for app default network are correctly configured.
 TEST_F(NetdBinderTest, PerAppDefaultNetwork_VerifyIpRules) {
-    EXPECT_TRUE(mNetd->networkCreatePhysical(APP_DEFAULT_NETID, INetd::PERMISSION_NONE).isOk());
+    const auto& config = makeNativeNetworkConfig(APP_DEFAULT_NETID, NativeNetworkType::PHYSICAL,
+                                                 INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
     EXPECT_TRUE(mNetd->networkAddInterface(APP_DEFAULT_NETID, sTun.name()).isOk());
 
     std::vector<UidRangeParcel> uidRanges = {makeUidRangeParcel(BASE_UID + 8005, BASE_UID + 8012),
@@ -4249,4 +4330,26 @@ TEST_P(VpnParameterizedTest, UnconnectedSocket) {
     expectPacketSentOnNetId(TEST_UID1, NETID_UNSET, appDefaultFd, UNCONNECTED_SOCKET);
     // uid is in both app and VPN range. Traffic goes through VPN.
     expectPacketSentOnNetId(TEST_UID2, NETID_UNSET, vpnFd, UNCONNECTED_SOCKET);
+}
+
+TEST_F(NetdBinderTest, NetworkCreate) {
+    auto config = makeNativeNetworkConfig(TEST_NETID1, NativeNetworkType::PHYSICAL,
+                                          INetd::PERMISSION_NONE, false);
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
+    EXPECT_TRUE(mNetd->networkDestroy(config.netId).isOk());
+
+    config.networkType = NativeNetworkType::VIRTUAL;
+    config.secure = true;
+    config.vpnType = NativeVpnType::OEM;
+    EXPECT_TRUE(mNetd->networkCreate(config).isOk());
+
+    // invalid network type
+    auto wrongConfig = makeNativeNetworkConfig(TEST_NETID2, static_cast<NativeNetworkType>(-1),
+                                               INetd::PERMISSION_NONE, false);
+    EXPECT_EQ(EINVAL, mNetd->networkCreate(wrongConfig).serviceSpecificErrorCode());
+
+    // invalid VPN type
+    wrongConfig.networkType = NativeNetworkType::VIRTUAL;
+    wrongConfig.vpnType = static_cast<NativeVpnType>(-1);
+    EXPECT_EQ(EINVAL, mNetd->networkCreate(wrongConfig).serviceSpecificErrorCode());
 }
