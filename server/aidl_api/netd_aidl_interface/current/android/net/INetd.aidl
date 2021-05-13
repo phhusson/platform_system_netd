@@ -37,7 +37,13 @@ interface INetd {
   boolean isAlive();
   boolean firewallReplaceUidChain(in @utf8InCpp String chainName, boolean isAllowlist, in int[] uids);
   boolean bandwidthEnableDataSaver(boolean enable);
+  /**
+   * @deprecated use networkCreate() instead.
+   */
   void networkCreatePhysical(int netId, int permission);
+  /**
+   * @deprecated use networkCreate() instead.
+   */
   void networkCreateVpn(int netId, boolean secure);
   void networkDestroy(int netId);
   void networkAddInterface(int netId, in @utf8InCpp String iface);
@@ -138,6 +144,7 @@ interface INetd {
   android.net.TetherStatsParcel[] tetherOffloadGetStats();
   void tetherOffloadSetInterfaceQuota(int ifIndex, long quotaBytes);
   android.net.TetherStatsParcel tetherOffloadGetAndClearStats(int ifIndex);
+  void networkCreate(in android.net.NativeNetworkConfig config);
   const int IPV4 = 4;
   const int IPV6 = 6;
   const int CONF = 1;
