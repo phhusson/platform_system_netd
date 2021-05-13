@@ -19,6 +19,7 @@ package android.net;
 import android.net.INetdUnsolicitedEventListener;
 import android.net.InterfaceConfigurationParcel;
 import android.net.MarkMaskParcel;
+import android.net.NativeNetworkConfig;
 import android.net.RouteInfoParcel;
 import android.net.TetherConfigParcel;
 import android.net.TetherOffloadRuleParcel;
@@ -69,6 +70,7 @@ interface INetd {
 
     /**
      * Creates a physical network (i.e., one containing physical interfaces.
+     * @deprecated use networkCreate() instead.
      *
      * @param netId the networkId to create.
      * @param permission the permission necessary to use the network. Must be one of
@@ -81,6 +83,7 @@ interface INetd {
 
     /**
      * Creates a VPN network.
+     * @deprecated use networkCreate() instead.
      *
      * @param netId the network to create.
      * @param secure whether unprivileged apps are allowed to bypass the VPN.
@@ -1337,4 +1340,13 @@ interface INetd {
      *                                  cause of the failure.
      */
      TetherStatsParcel tetherOffloadGetAndClearStats(int ifIndex);
+
+    /**
+     * Creates a network.
+     *
+     * @param config the configuration of network.
+     * @throws ServiceSpecificException in case of failure, with an error code corresponding to the
+     *         unix errno.
+     */
+    void networkCreate(in NativeNetworkConfig config);
 }
