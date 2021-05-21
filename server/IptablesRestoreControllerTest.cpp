@@ -257,7 +257,7 @@ TEST_F(IptablesRestoreControllerTest, TestRestartOnProcessDeath) {
 
 TEST_F(IptablesRestoreControllerTest, TestCommandTimeout) {
   // Don't wait 10 seconds for this test to fail.
-  setRetryParameters(3, 50);
+  setRetryParameters(3, 100);
 
   // Expected contents of the chain.
   std::vector<std::string> expectedLines = {
