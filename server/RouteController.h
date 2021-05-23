@@ -17,6 +17,7 @@
 #pragma once
 
 #include "NetdConstants.h"  // IptablesTarget
+#include "Network.h"        // UidRangeMap
 #include "Permission.h"
 
 #include <android-base/thread_annotations.h>
@@ -107,26 +108,28 @@ public:
 
     [[nodiscard]] static int addInterfaceToPhysicalNetwork(unsigned netId, const char* interface,
                                                            Permission permission,
-                                                           const UidRanges& uidRanges);
+                                                           const UidRangeMap& uidRangeMap);
     [[nodiscard]] static int removeInterfaceFromPhysicalNetwork(unsigned netId,
                                                                 const char* interface,
                                                                 Permission permission,
-                                                                const UidRanges& uidRanges);
+                                                                const UidRangeMap& uidRangeMap);
 
     [[nodiscard]] static int addInterfaceToVirtualNetwork(unsigned netId, const char* interface,
-                                                          bool secure, const UidRanges& uidRanges);
+                                                          bool secure,
+                                                          const UidRangeMap& uidRangeMap);
     [[nodiscard]] static int removeInterfaceFromVirtualNetwork(unsigned netId,
                                                                const char* interface, bool secure,
-                                                               const UidRanges& uidRanges);
+                                                               const UidRangeMap& uidRangeMap);
 
     [[nodiscard]] static int modifyPhysicalNetworkPermission(unsigned netId, const char* interface,
                                                              Permission oldPermission,
                                                              Permission newPermission);
 
     [[nodiscard]] static int addUsersToVirtualNetwork(unsigned netId, const char* interface,
-                                                      bool secure, const UidRanges& uidRanges);
+                                                      bool secure, const UidRangeMap& uidRangeMap);
     [[nodiscard]] static int removeUsersFromVirtualNetwork(unsigned netId, const char* interface,
-                                                           bool secure, const UidRanges& uidRanges);
+                                                           bool secure,
+                                                           const UidRangeMap& uidRangeMap);
 
     [[nodiscard]] static int addUsersToRejectNonSecureNetworkRule(const UidRanges& uidRanges);
     [[nodiscard]] static int removeUsersFromRejectNonSecureNetworkRule(const UidRanges& uidRanges);
@@ -158,16 +161,16 @@ public:
                                                              Permission permission);
 
     [[nodiscard]] static int addUsersToPhysicalNetwork(unsigned netId, const char* interface,
-                                                       const UidRanges& uidRanges);
+                                                       const UidRangeMap& uidRangeMap);
 
     [[nodiscard]] static int removeUsersFromPhysicalNetwork(unsigned netId, const char* interface,
-                                                            const UidRanges& uidRanges);
+                                                            const UidRangeMap& uidRangeMap);
 
     [[nodiscard]] static int addUsersToUnreachableNetwork(unsigned netId,
-                                                          const UidRanges& uidRanges);
+                                                          const UidRangeMap& uidRangeMap);
 
     [[nodiscard]] static int removeUsersFromUnreachableNetwork(unsigned netId,
-                                                               const UidRanges& uidRanges);
+                                                               const UidRangeMap& uidRangeMap);
 
     // For testing.
     static int (*iptablesRestoreCommandFunction)(IptablesTarget, const std::string&,
@@ -187,9 +190,9 @@ private:
     static uint32_t getRouteTableForInterface(const char *interface) EXCLUDES(sInterfaceToTableLock);
     static int modifyDefaultNetwork(uint16_t action, const char* interface, Permission permission);
     static int modifyPhysicalNetwork(unsigned netId, const char* interface,
-                                     const UidRanges& uidRanges, Permission permission, bool add,
-                                     bool modifyNonUidBasedRules);
-    static int modifyUnreachableNetwork(unsigned netId, const UidRanges& uidRanges, bool add);
+                                     const UidRangeMap& uidRangeMap, Permission permission,
+                                     bool add, bool modifyNonUidBasedRules);
+    static int modifyUnreachableNetwork(unsigned netId, const UidRangeMap& uidRangeMap, bool add);
     static int modifyRoute(uint16_t action, uint16_t flags, const char* interface,
                            const char* destination, const char* nexthop, TableType tableType,
                            int mtu);
@@ -198,7 +201,7 @@ private:
     static int modifyVpnFallthroughRule(uint16_t action, unsigned vpnNetId,
                                         const char* physicalInterface, Permission permission);
     static int modifyVirtualNetwork(unsigned netId, const char* interface,
-                                    const UidRanges& uidRanges, bool secure, bool add,
+                                    const UidRangeMap& uidRangeMap, bool secure, bool add,
                                     bool modifyNonUidBasedRules);
     static void updateTableNamesFile() EXCLUDES(sInterfaceToTableLock);
 };

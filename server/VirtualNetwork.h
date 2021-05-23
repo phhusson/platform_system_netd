@@ -33,8 +33,8 @@ class VirtualNetwork : public Network {
 public:
     VirtualNetwork(unsigned netId, bool secure);
     virtual ~VirtualNetwork();
-    [[nodiscard]] int addUsers(const UidRanges& uidRanges) override;
-    [[nodiscard]] int removeUsers(const UidRanges& uidRanges) override;
+    [[nodiscard]] int addUsers(const UidRanges& uidRanges, uint32_t subPriority) override;
+    [[nodiscard]] int removeUsers(const UidRanges& uidRanges, uint32_t subPriority) override;
     bool isVirtual() override { return true; }
     bool canAddUsers() override { return true; }
 
@@ -42,6 +42,7 @@ public:
     std::string getTypeString() const override { return "VIRTUAL"; };
     [[nodiscard]] int addInterface(const std::string& interface) override;
     [[nodiscard]] int removeInterface(const std::string& interface) override;
+    bool isValidSubPriority(uint32_t priority) override;
 };
 
 }  // namespace android::net

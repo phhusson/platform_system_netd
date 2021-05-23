@@ -70,22 +70,53 @@ std::string Network::toString() const {
     return repr.str();
 }
 
-bool Network::appliesToUser(uid_t uid) const {
-    return mUidRanges.hasUid(uid);
-}
-
-bool Network::hasInvalidUidRanges(const UidRanges& uidRanges) const {
-    if (uidRanges.overlapsSelf()) {
-        ALOGE("uid range %s overlaps self", uidRanges.toString().c_str());
-        return true;
-    }
-
-    if (uidRanges.overlaps(mUidRanges)) {
-        ALOGE("uid range %s overlaps %s", uidRanges.toString().c_str(),
-              mUidRanges.toString().c_str());
-        return true;
+// Check if the user has been added to this network. If yes, the highest priority of matching
+// setting is returned by subPriority. Thus caller can make choice among several matching
+// networks.
+bool Network::appliesToUser(uid_t uid, uint32_t* subPriority) const {
+    for (const auto& [priority, uidRanges] : mUidRangeMap) {
+        if (uidRanges.hasUid(uid)) {
+            *subPriority = priority;
+            return true;
+        }
     }
     return false;
+}
+
+void Network::addToUidRangeMap(const UidRanges& uidRanges, uint32_t subPriority) {
+    auto iter = mUidRangeMap.find(subPriority);
+    if (iter != mUidRangeMap.end()) {
+        iter->second.add(uidRanges);
+    } else {
+        mUidRangeMap[subPriority] = uidRanges;
+    }
+}
+
+void Network::removeFromUidRangeMap(const UidRanges& uidRanges, uint32_t subPriority) {
+    auto iter = mUidRangeMap.find(subPriority);
+    if (iter != mUidRangeMap.end()) {
+        iter->second.remove(uidRanges);
+        if (iter->second.empty()) {
+            mUidRangeMap.erase(subPriority);
+        }
+    } else {
+        ALOGW("uidRanges with priority %u not found", subPriority);
+    }
+}
+
+bool Network::canAddUidRanges(const UidRanges& uidRanges, uint32_t subPriority) const {
+    if (uidRanges.overlapsSelf()) {
+        ALOGE("uid range %s overlaps self", uidRanges.toString().c_str());
+        return false;
+    }
+
+    auto iter = mUidRangeMap.find(subPriority);
+    if (iter != mUidRangeMap.end() && uidRanges.overlaps(iter->second)) {
+        ALOGE("uid range %s overlaps priority %u %s", uidRanges.toString().c_str(), subPriority,
+              iter->second.toString().c_str());
+        return false;
+    }
+    return true;
 }
 
 bool Network::isSecure() const {
