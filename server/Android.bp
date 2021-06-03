@@ -327,6 +327,7 @@ cc_binary {
     ],
     sanitize: {
         cfi: true,
+        memtag_heap: true,
     },
 }
 
