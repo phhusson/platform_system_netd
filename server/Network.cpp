@@ -70,6 +70,19 @@ std::string Network::toString() const {
     return repr.str();
 }
 
+std::string Network::uidRangesToString() const {
+    if (mUidRangeMap.empty()) {
+        return "";
+    }
+
+    std::ostringstream result;
+    for (auto it = mUidRangeMap.begin(); it != mUidRangeMap.end(); ++it) {
+        result << "prio " << it->first << " " << it->second.toString();
+        if (std::next(it) != mUidRangeMap.end()) result << "; ";
+    }
+    return result.str();
+}
+
 // Check if the user has been added to this network. If yes, the highest priority of matching
 // setting is returned by subPriority. Thus caller can make choice among several matching
 // networks.

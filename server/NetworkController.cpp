@@ -742,6 +742,11 @@ void NetworkController::dump(DumpWriter& dw) {
             dw.println("Required permission: %s", permissionToName(permission));
             dw.decIndent();
         }
+        if (const auto& str = network->uidRangesToString(); !str.empty()) {
+            dw.incIndent();
+            dw.println(str);
+            dw.decIndent();
+        }
         dw.blankline();
     }
     dw.decIndent();

@@ -46,6 +46,7 @@ public:
     [[nodiscard]] int clearInterfaces();
 
     std::string toString() const;
+    std::string uidRangesToString() const;
     bool appliesToUser(uid_t uid, uint32_t* subPriority) const;
     [[nodiscard]] virtual int addUsers(const UidRanges&, uint32_t /*subPriority*/) {
         return -EINVAL;

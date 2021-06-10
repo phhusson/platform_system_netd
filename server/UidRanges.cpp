@@ -155,7 +155,7 @@ bool UidRanges::overlaps(const UidRanges& other) const {
 }
 
 std::string UidRanges::toString() const {
-    std::string s("UidRanges{ ");
+    std::string s("uids{ ");
     for (const auto &range : mRanges) {
         if (length(range) == 0) {
             StringAppendF(&s, "<BAD: %u-%u> ", range.start, range.stop);
