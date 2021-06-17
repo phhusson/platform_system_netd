@@ -750,6 +750,72 @@ TEST_F(NetdBinderTest, SocketDestroy) {
     checkSocketpairClosed(clientSocket, acceptedSocket);
 }
 
+TEST_F(NetdBinderTest, SocketDestroyLinkLocal) {
+    // Add the same link-local address to two interfaces.
+    const char* kLinkLocalAddress = "fe80::ace:d00d";
+
+    const struct addrinfo hints = {
+            .ai_family = AF_INET6,
+            .ai_socktype = SOCK_STREAM,
+            .ai_flags = AI_NUMERICHOST,
+    };
+
+    binder::Status status = mNetd->interfaceAddAddress(sTun.name(), kLinkLocalAddress, 64);
+    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
+    status = mNetd->interfaceAddAddress(sTun2.name(), kLinkLocalAddress, 64);
+    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
+
+    // Bind a listening socket to the address on each of two interfaces.
+    // The sockets must be open at the same time, because this test checks that SOCK_DESTROY only
+    // destroys the sockets on the interface where the address is deleted.
+    struct addrinfo* addrinfoList = nullptr;
+    int ret = getaddrinfo(kLinkLocalAddress, nullptr, &hints, &addrinfoList);
+    ScopedAddrinfo addrinfoCleanup(addrinfoList);
+    ASSERT_EQ(0, ret);
+
+    socklen_t len = addrinfoList[0].ai_addrlen;
+    sockaddr_in6 sin6_1 = *reinterpret_cast<sockaddr_in6*>(addrinfoList[0].ai_addr);
+    sockaddr_in6 sin6_2 = sin6_1;
+    sin6_1.sin6_scope_id = if_nametoindex(sTun.name().c_str());
+    sin6_2.sin6_scope_id = if_nametoindex(sTun2.name().c_str());
+
+    int s1 = socket(AF_INET6, SOCK_STREAM, 0);
+    ASSERT_EQ(0, bind(s1, reinterpret_cast<sockaddr*>(&sin6_1), len));
+    ASSERT_EQ(0, getsockname(s1, reinterpret_cast<sockaddr*>(&sin6_1), &len));
+
+    int s2 = socket(AF_INET6, SOCK_STREAM, 0);
+    ASSERT_EQ(0, bind(s2, reinterpret_cast<sockaddr*>(&sin6_2), len));
+    ASSERT_EQ(0, getsockname(s2, reinterpret_cast<sockaddr*>(&sin6_2), &len));
+
+    ASSERT_EQ(0, listen(s1, 10));
+    ASSERT_EQ(0, listen(s2, 10));
+
+    // Connect one client socket to each and accept the connections.
+    int c1 = socket(AF_INET6, SOCK_STREAM, 0);
+    int c2 = socket(AF_INET6, SOCK_STREAM, 0);
+    ASSERT_EQ(0, connect(c1, reinterpret_cast<sockaddr*>(&sin6_1), len));
+    ASSERT_EQ(0, connect(c2, reinterpret_cast<sockaddr*>(&sin6_2), len));
+    int a1 = accept(s1, nullptr, 0);
+    ASSERT_NE(-1, a1);
+    int a2 = accept(s2, nullptr, 0);
+    ASSERT_NE(-1, a2);
+
+    // Delete the address on sTun2.
+    status = mNetd->interfaceDelAddress(sTun2.name(), kLinkLocalAddress, 64);
+    EXPECT_TRUE(status.isOk()) << status.exceptionMessage();
+
+    // The sockets on sTun2 are closed, but the ones on sTun1 remain open.
+    char buf[1024];
+    EXPECT_EQ(-1, read(c2, buf, sizeof(buf)));
+    EXPECT_EQ(ECONNABORTED, errno);
+    // The blocking read above ensures that SOCK_DESTROY has completed.
+
+    EXPECT_EQ(3, write(a1, "foo", 3));
+    EXPECT_EQ(3, read(c1, buf, sizeof(buf)));
+    EXPECT_EQ(-1, write(a2, "foo", 3));
+    EXPECT_TRUE(errno == ECONNABORTED || errno == ECONNRESET);
+}
+
 namespace {
 
 int netmaskToPrefixLength(const uint8_t *buf, size_t buflen) {
@@ -868,6 +934,7 @@ TEST_F(NetdBinderTest, InterfaceAddRemoveAddress) {
             {"2001:db8::1", 64, 0, 0},
             {"2001:db8::2", 65, 0, 0},
             {"2001:db8::3", 128, 0, 0},
+            {"fe80::1234", 64, 0, 0},
             {"2001:db8::4", 129, EINVAL, EINVAL},
             {"foo:bar::bad", 64, EINVAL, EINVAL},
             {"2001:db8::1/64", 64, EINVAL, EINVAL},
