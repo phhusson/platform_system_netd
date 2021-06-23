@@ -48,6 +48,22 @@ TEST(NetUtilsWrapperTest, TestFileCapabilities) {
     ASSERT_EQ(ENODATA, errno);
 }
 
+// If this test fails most likely your device is lacking device/oem specific
+// selinux genfscon rules, something like .../vendor/.../genfs_contexts:
+//   genfscon sysfs /devices/platform/.../net u:object_r:sysfs_net:s0
+// Easiest debugging is via:
+//   adb root && sleep 1 && adb shell 'ls -Z /sys/class/net/*/mtu'
+// and look for the mislabeled item(s).
+// Everything should be 'u:object_r:sysfs_net:s0'
+//
+// Another useful command is:
+//   adb root && sleep 1 && adb shell find /sys > dump.out
+// or in particular:
+//   adb root && sleep 1 && adb shell find /sys | egrep '/net$'
+// which might (among other things) print out something like:
+//   /sys/devices/platform/11110000.usb/11110000.dwc3/gadget/net
+// which means you need to add:
+//   genfscon sysfs /devices/platform/11110000.usb/11110000.dwc3/gadget/net u:object_r:sysfs_net:s0
 TEST(NetdSELinuxTest, CheckProperMTULabels) {
     // Since we expect the egrep regexp to filter everything out,
     // we thus expect no matches and thus a return code of 1
