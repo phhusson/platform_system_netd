@@ -24,6 +24,8 @@
 
 namespace android::net {
 
+typedef std::map<uint32_t, UidRanges> UidRangeMap;
+
 // A Network represents a collection of interfaces participating as a single administrative unit.
 class Network {
 public:
@@ -44,22 +46,30 @@ public:
     [[nodiscard]] int clearInterfaces();
 
     std::string toString() const;
-    bool appliesToUser(uid_t uid) const;
-    [[nodiscard]] virtual int addUsers(const UidRanges&) { return -EINVAL; };
-    [[nodiscard]] virtual int removeUsers(const UidRanges&) { return -EINVAL; };
+    bool appliesToUser(uid_t uid, uint32_t* subPriority) const;
+    [[nodiscard]] virtual int addUsers(const UidRanges&, uint32_t /*subPriority*/) {
+        return -EINVAL;
+    };
+    [[nodiscard]] virtual int removeUsers(const UidRanges&, uint32_t /*subPriority*/) {
+        return -EINVAL;
+    };
     bool isSecure() const;
     virtual bool isPhysical() { return false; }
     virtual bool isUnreachable() { return false; }
     virtual bool isVirtual() { return false; }
     virtual bool canAddUsers() { return false; }
+    virtual bool isValidSubPriority(uint32_t /*priority*/) { return false; }
+    virtual void addToUidRangeMap(const UidRanges& uidRanges, uint32_t subPriority);
+    virtual void removeFromUidRangeMap(const UidRanges& uidRanges, uint32_t subPriority);
 
 protected:
     explicit Network(unsigned netId, bool mSecure = false);
-    bool hasInvalidUidRanges(const UidRanges& uidRanges) const;
+    bool canAddUidRanges(const UidRanges& uidRanges, uint32_t subPriority) const;
 
     const unsigned mNetId;
     std::set<std::string> mInterfaces;
-    UidRanges mUidRanges;
+    // Each subsidiary priority maps to a set of UID ranges of a feature.
+    std::map<uint32_t, UidRanges> mUidRangeMap;
     const bool mSecure;
 
 private:

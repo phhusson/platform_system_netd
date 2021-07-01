@@ -145,6 +145,8 @@ interface INetd {
   void tetherOffloadSetInterfaceQuota(int ifIndex, long quotaBytes);
   android.net.TetherStatsParcel tetherOffloadGetAndClearStats(int ifIndex);
   void networkCreate(in android.net.NativeNetworkConfig config);
+  void networkAddUidRangesParcel(in android.net.netd.aidl.NativeUidRangeConfig uidRangesConfig);
+  void networkRemoveUidRangesParcel(in android.net.netd.aidl.NativeUidRangeConfig uidRangesConfig);
   const int IPV4 = 4;
   const int IPV6 = 6;
   const int CONF = 1;

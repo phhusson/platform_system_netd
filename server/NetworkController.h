@@ -119,8 +119,10 @@ public:
     [[nodiscard]] int setPermissionForNetworks(Permission permission,
                                                const std::vector<unsigned>& netIds);
 
-    [[nodiscard]] int addUsersToNetwork(unsigned netId, const UidRanges& uidRanges);
-    [[nodiscard]] int removeUsersFromNetwork(unsigned netId, const UidRanges& uidRanges);
+    [[nodiscard]] int addUsersToNetwork(unsigned netId, const UidRanges& uidRanges,
+                                        uint32_t subPriority);
+    [[nodiscard]] int removeUsersFromNetwork(unsigned netId, const UidRanges& uidRanges,
+                                             uint32_t subPriority);
 
     // |nexthop| can be NULL (to indicate a directly-connected route), "unreachable" (to indicate a
     // route that's blocked), "throw" (to indicate the lack of a match), or a regular IP address.

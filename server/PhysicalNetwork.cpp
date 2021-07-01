@@ -158,32 +158,35 @@ int PhysicalNetwork::removeAsDefault() {
     return 0;
 }
 
-int PhysicalNetwork::addUsers(const UidRanges& uidRanges) {
-    if (hasInvalidUidRanges(uidRanges)) {
+int PhysicalNetwork::addUsers(const UidRanges& uidRanges, uint32_t subPriority) {
+    if (!isValidSubPriority(subPriority) || !canAddUidRanges(uidRanges, subPriority)) {
         return -EINVAL;
     }
 
     for (const std::string& interface : mInterfaces) {
-        int ret = RouteController::addUsersToPhysicalNetwork(mNetId, interface.c_str(), uidRanges);
+        int ret = RouteController::addUsersToPhysicalNetwork(mNetId, interface.c_str(),
+                                                             {{subPriority, uidRanges}});
         if (ret) {
             ALOGE("failed to add users on interface %s of netId %u", interface.c_str(), mNetId);
             return ret;
         }
     }
-    mUidRanges.add(uidRanges);
+    addToUidRangeMap(uidRanges, subPriority);
     return 0;
 }
 
-int PhysicalNetwork::removeUsers(const UidRanges& uidRanges) {
+int PhysicalNetwork::removeUsers(const UidRanges& uidRanges, uint32_t subPriority) {
+    if (!isValidSubPriority(subPriority)) return -EINVAL;
+
     for (const std::string& interface : mInterfaces) {
         int ret = RouteController::removeUsersFromPhysicalNetwork(mNetId, interface.c_str(),
-                                                                  uidRanges);
+                                                                  {{subPriority, uidRanges}});
         if (ret) {
             ALOGE("failed to remove users on interface %s of netId %u", interface.c_str(), mNetId);
             return ret;
         }
     }
-    mUidRanges.remove(uidRanges);
+    removeFromUidRangeMap(uidRanges, subPriority);
     return 0;
 }
 
@@ -192,7 +195,7 @@ int PhysicalNetwork::addInterface(const std::string& interface) {
         return 0;
     }
     if (int ret = RouteController::addInterfaceToPhysicalNetwork(mNetId, interface.c_str(),
-                                                                 mPermission, mUidRanges)) {
+                                                                 mPermission, mUidRangeMap)) {
         ALOGE("failed to add interface %s to netId %u", interface.c_str(), mNetId);
         return ret;
     }
@@ -219,12 +222,17 @@ int PhysicalNetwork::removeInterface(const std::string& interface) {
     // to find the interface index in the cache in cases where the interface is already gone
     // (e.g. bt-pan).
     if (int ret = RouteController::removeInterfaceFromPhysicalNetwork(mNetId, interface.c_str(),
-                                                                      mPermission, mUidRanges)) {
+                                                                      mPermission, mUidRangeMap)) {
         ALOGE("failed to remove interface %s from netId %u", interface.c_str(), mNetId);
         return ret;
     }
     mInterfaces.erase(interface);
     return 0;
+}
+
+bool PhysicalNetwork::isValidSubPriority(uint32_t priority) {
+    return priority >= UidRanges::DEFAULT_SUB_PRIORITY &&
+           priority <= UidRanges::LOWEST_SUB_PRIORITY;
 }
 
 }  // namespace android::net

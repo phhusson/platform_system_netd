@@ -616,22 +616,24 @@ int isWrongNetworkForUidRanges(unsigned netId, Network* network) {
 
 }  // namespace
 
-int NetworkController::addUsersToNetwork(unsigned netId, const UidRanges& uidRanges) {
+int NetworkController::addUsersToNetwork(unsigned netId, const UidRanges& uidRanges,
+                                         uint32_t subPriority) {
     ScopedWLock lock(mRWLock);
     Network* network = getNetworkLocked(netId);
     if (int ret = isWrongNetworkForUidRanges(netId, network)) {
         return ret;
     }
-    return network->addUsers(uidRanges);
+    return network->addUsers(uidRanges, subPriority);
 }
 
-int NetworkController::removeUsersFromNetwork(unsigned netId, const UidRanges& uidRanges) {
+int NetworkController::removeUsersFromNetwork(unsigned netId, const UidRanges& uidRanges,
+                                              uint32_t subPriority) {
     ScopedWLock lock(mRWLock);
     Network* network = getNetworkLocked(netId);
     if (int ret = isWrongNetworkForUidRanges(netId, network)) {
         return ret;
     }
-    return network->removeUsers(uidRanges);
+    return network->removeUsers(uidRanges, subPriority);
 }
 
 int NetworkController::addRoute(unsigned netId, const char* interface, const char* destination,
@@ -776,30 +778,32 @@ Network* NetworkController::getNetworkLocked(unsigned netId) const {
 }
 
 VirtualNetwork* NetworkController::getVirtualNetworkForUserLocked(uid_t uid) const {
+    uint32_t subPriority;
     for (const auto& [_, network] : mNetworks) {
-        if (network->isVirtual() && network->appliesToUser(uid)) {
+        if (network->isVirtual() && network->appliesToUser(uid, &subPriority)) {
             return static_cast<VirtualNetwork*>(network);
         }
     }
     return nullptr;
 }
 
+// Returns a network with the highest subsidiary priority among physical and unreachable networks
+// that applies to uid. For a single subsidiary priority, an uid should belong to only one network.
+// If the uid apply to different network with the same priority at the same time, the behavior is
+// undefined. That is a configuration error.
 Network* NetworkController::getPhysicalOrUnreachableNetworkForUserLocked(uid_t uid) const {
-    // OEM-paid network take precedence over the unreachable network.
-    for (const auto& [_, network] : mNetworks) {
-        if (network->isPhysical() && network->appliesToUser(uid)) {
-            // Return the first physical network that matches UID.
-            // If there is more than one such network, the behaviour is undefined.
-            // This is a configuration error.
-            return network;
+    Network* bestNetwork = nullptr;
+    unsigned bestSubPriority = UidRanges::LOWEST_SUB_PRIORITY + 1;
+    for (const auto& [netId, network] : mNetworks) {
+        uint32_t subPriority;
+        if (!network->isPhysical() && !network->isUnreachable()) continue;
+        if (!network->appliesToUser(uid, &subPriority)) continue;
+        if (subPriority < bestSubPriority) {
+            bestNetwork = network;
+            bestSubPriority = subPriority;
         }
     }
-
-    auto iter = mNetworks.find(UNREACHABLE_NET_ID);
-    if (iter != mNetworks.end() && iter->second->appliesToUser(uid)) {
-        return iter->second;
-    }
-    return nullptr;
+    return bestNetwork;
 }
 
 Permission NetworkController::getPermissionForUserLocked(uid_t uid) const {
@@ -827,8 +831,9 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
         return 0;
     }
     // If the UID wants to use a VPN, it can do so if and only if the VPN applies to the UID.
+    uint32_t subPriority;
     if (network->isVirtual()) {
-        return network->appliesToUser(uid) ? 0 : -EPERM;
+        return network->appliesToUser(uid, &subPriority) ? 0 : -EPERM;
     }
     // If a VPN applies to the UID, and the VPN is secure (i.e., not bypassable), then the UID can
     // only select a different network if it has the ability to protect its sockets.
@@ -839,12 +844,12 @@ int NetworkController::checkUserNetworkAccessLocked(uid_t uid, unsigned netId) c
     }
     // If the UID wants to use a physical network and it has a UID range that includes the UID, the
     // UID has permission to use it regardless of whether the permission bits match.
-    if (network->isPhysical() && network->appliesToUser(uid)) {
+    if (network->isPhysical() && network->appliesToUser(uid, &subPriority)) {
         return 0;
     }
     // Only apps that are configured as "no default network" can use the unreachable network.
     if (network->isUnreachable()) {
-        return network->appliesToUser(uid) ? 0 : -EPERM;
+        return network->appliesToUser(uid, &subPriority) ? 0 : -EPERM;
     }
     // Check whether the UID's permission bits are sufficient to use the network.
     // Because the permission of the system default network is PERMISSION_NONE(0x0), apps can always
