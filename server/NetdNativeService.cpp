@@ -56,6 +56,7 @@ using android::net::NativeNetworkType;
 using android::net::TetherOffloadRuleParcel;
 using android::net::TetherStatsParcel;
 using android::net::UidRangeParcel;
+using android::net::netd::aidl::NativeUidRangeConfig;
 using android::netdutils::DumpWriter;
 using android::netdutils::ScopedIndent;
 using android::os::ParcelFileDescriptor;
@@ -400,7 +401,8 @@ binder::Status NetdNativeService::networkAddUidRanges(
         int32_t netId, const std::vector<UidRangeParcel>& uidRangeArray) {
     // NetworkController::addUsersToNetwork is thread-safe.
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-    int ret = gCtls->netCtrl.addUsersToNetwork(netId, UidRanges(uidRangeArray));
+    int ret = gCtls->netCtrl.addUsersToNetwork(netId, UidRanges(uidRangeArray),
+                                               UidRanges::DEFAULT_SUB_PRIORITY);
     return statusFromErrcode(ret);
 }
 
@@ -408,7 +410,22 @@ binder::Status NetdNativeService::networkRemoveUidRanges(
         int32_t netId, const std::vector<UidRangeParcel>& uidRangeArray) {
     // NetworkController::removeUsersFromNetwork is thread-safe.
     ENFORCE_NETWORK_STACK_PERMISSIONS();
-    int ret = gCtls->netCtrl.removeUsersFromNetwork(netId, UidRanges(uidRangeArray));
+    int ret = gCtls->netCtrl.removeUsersFromNetwork(netId, UidRanges(uidRangeArray),
+                                                    UidRanges::DEFAULT_SUB_PRIORITY);
+    return statusFromErrcode(ret);
+}
+
+binder::Status NetdNativeService::networkAddUidRangesParcel(const NativeUidRangeConfig& config) {
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
+    int ret = gCtls->netCtrl.addUsersToNetwork(config.netId, UidRanges(config.uidRanges),
+                                               config.subPriority);
+    return statusFromErrcode(ret);
+}
+
+binder::Status NetdNativeService::networkRemoveUidRangesParcel(const NativeUidRangeConfig& config) {
+    ENFORCE_NETWORK_STACK_PERMISSIONS();
+    int ret = gCtls->netCtrl.removeUsersFromNetwork(config.netId, UidRanges(config.uidRanges),
+                                                    config.subPriority);
     return statusFromErrcode(ret);
 }
 
