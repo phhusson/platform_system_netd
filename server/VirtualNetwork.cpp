@@ -31,33 +31,35 @@ VirtualNetwork::VirtualNetwork(unsigned netId, bool secure) : Network(netId, sec
 
 VirtualNetwork::~VirtualNetwork() {}
 
-int VirtualNetwork::addUsers(const UidRanges& uidRanges) {
-    if (hasInvalidUidRanges(uidRanges)) {
+int VirtualNetwork::addUsers(const UidRanges& uidRanges, uint32_t subPriority) {
+    if (!isValidSubPriority(subPriority) || !canAddUidRanges(uidRanges, subPriority)) {
         return -EINVAL;
     }
 
     for (const std::string& interface : mInterfaces) {
         int ret = RouteController::addUsersToVirtualNetwork(mNetId, interface.c_str(), mSecure,
-                                                            uidRanges);
+                                                            {{subPriority, uidRanges}});
         if (ret) {
             ALOGE("failed to add users on interface %s of netId %u", interface.c_str(), mNetId);
             return ret;
         }
     }
-    mUidRanges.add(uidRanges);
+    addToUidRangeMap(uidRanges, subPriority);
     return 0;
 }
 
-int VirtualNetwork::removeUsers(const UidRanges& uidRanges) {
+int VirtualNetwork::removeUsers(const UidRanges& uidRanges, uint32_t subPriority) {
+    if (!isValidSubPriority(subPriority)) return -EINVAL;
+
     for (const std::string& interface : mInterfaces) {
         int ret = RouteController::removeUsersFromVirtualNetwork(mNetId, interface.c_str(), mSecure,
-                                                                 uidRanges);
+                                                                 {{subPriority, uidRanges}});
         if (ret) {
             ALOGE("failed to remove users on interface %s of netId %u", interface.c_str(), mNetId);
             return ret;
         }
     }
-    mUidRanges.remove(uidRanges);
+    removeFromUidRangeMap(uidRanges, subPriority);
     return 0;
 }
 
@@ -66,7 +68,7 @@ int VirtualNetwork::addInterface(const std::string& interface) {
         return 0;
     }
     if (int ret = RouteController::addInterfaceToVirtualNetwork(mNetId, interface.c_str(), mSecure,
-                                                                mUidRanges)) {
+                                                                mUidRangeMap)) {
         ALOGE("failed to add interface %s to VPN netId %u", interface.c_str(), mNetId);
         return ret;
     }
@@ -79,12 +81,17 @@ int VirtualNetwork::removeInterface(const std::string& interface) {
         return 0;
     }
     if (int ret = RouteController::removeInterfaceFromVirtualNetwork(mNetId, interface.c_str(),
-                                                                     mSecure, mUidRanges)) {
+                                                                     mSecure, mUidRangeMap)) {
         ALOGE("failed to remove interface %s from VPN netId %u", interface.c_str(), mNetId);
         return ret;
     }
     mInterfaces.erase(interface);
     return 0;
+}
+
+bool VirtualNetwork::isValidSubPriority(uint32_t priority) {
+    // Only supports default subsidiary permissions.
+    return priority == UidRanges::DEFAULT_SUB_PRIORITY;
 }
 
 }  // namespace net

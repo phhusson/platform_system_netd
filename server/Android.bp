@@ -12,7 +12,7 @@ java_library {
     sdk_version: "system_current",
     min_sdk_version: "29",
     static_libs: [
-        "netd_aidl_interface-V6-java",
+        "netd_aidl_interface-V7-java",
     ],
     apex_available: [
         "//apex_available:platform", // used from services.net
@@ -36,7 +36,7 @@ cc_library_static {
 cc_library_static {
     name: "netd_aidl_interface-lateststable-ndk_platform",
     whole_static_libs: [
-        "netd_aidl_interface-V6-ndk_platform",
+        "netd_aidl_interface-V7-ndk_platform",
     ],
     apex_available: [
         "com.android.resolv",
@@ -47,7 +47,7 @@ cc_library_static {
 cc_library_static {
     name: "netd_aidl_interface-lateststable-cpp",
     whole_static_libs: [
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
     ],
 }
 
@@ -68,6 +68,8 @@ aidl_interface {
         "binder/android/net/TetherOffloadRuleParcel.aidl",
         "binder/android/net/TetherStatsParcel.aidl",
         "binder/android/net/UidRangeParcel.aidl",
+        // Add new AIDL classes in android.net.netd.aidl to consist with other network modules.
+        "binder/android/net/netd/aidl/**/*.aidl",
     ],
     backend: {
         cpp: {
@@ -101,6 +103,7 @@ aidl_interface {
         "4",
         "5",
         "6",
+        "7",
     ],
 }
 
@@ -219,7 +222,7 @@ cc_library_static {
         "libqtaguid",
         "libssl",
         "libsysutils",
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
         "netd_event_listener_interface-V1-cpp",
     ],
     aidl: {
@@ -262,7 +265,7 @@ cc_binary {
         "libselinux",
         "libsysutils",
         "libutils",
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
         "netd_event_listener_interface-V1-cpp",
         "oemnetd_aidl_interface-cpp",
     ],
@@ -360,7 +363,7 @@ cc_test {
         "libnetd_server",
         "libnetd_test_tun_interface",
         "libqtaguid",
-        "netd_aidl_interface-V6-cpp",
+        "netd_aidl_interface-V7-cpp",
         "netd_event_listener_interface-V1-cpp",
     ],
     shared_libs: [
