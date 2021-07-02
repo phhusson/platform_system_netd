@@ -26,28 +26,36 @@ namespace net {
 // The unreachable network is used to reject traffic. It is used for system purposes only.
 UnreachableNetwork::UnreachableNetwork(unsigned netId) : Network(netId) {}
 
-int UnreachableNetwork::addUsers(const UidRanges& uidRanges) {
-    if (hasInvalidUidRanges(uidRanges)) {
+int UnreachableNetwork::addUsers(const UidRanges& uidRanges, uint32_t subPriority) {
+    if (!isValidSubPriority(subPriority) || !canAddUidRanges(uidRanges, subPriority)) {
         return -EINVAL;
     }
 
-    int ret = RouteController::addUsersToUnreachableNetwork(mNetId, uidRanges);
+    int ret = RouteController::addUsersToUnreachableNetwork(mNetId, {{subPriority, uidRanges}});
     if (ret) {
         ALOGE("failed to add users to unreachable network");
         return ret;
     }
-    mUidRanges.add(uidRanges);
+    addToUidRangeMap(uidRanges, subPriority);
     return 0;
 }
 
-int UnreachableNetwork::removeUsers(const UidRanges& uidRanges) {
-    int ret = RouteController::removeUsersFromUnreachableNetwork(mNetId, uidRanges);
+int UnreachableNetwork::removeUsers(const UidRanges& uidRanges, uint32_t subPriority) {
+    if (!isValidSubPriority(subPriority)) return -EINVAL;
+
+    int ret =
+            RouteController::removeUsersFromUnreachableNetwork(mNetId, {{subPriority, uidRanges}});
     if (ret) {
         ALOGE("failed to remove users from unreachable network");
         return ret;
     }
-    mUidRanges.remove(uidRanges);
+    removeFromUidRangeMap(uidRanges, subPriority);
     return 0;
+}
+
+bool UnreachableNetwork::isValidSubPriority(uint32_t priority) {
+    return priority >= UidRanges::DEFAULT_SUB_PRIORITY &&
+           priority <= UidRanges::LOWEST_SUB_PRIORITY;
 }
 
 }  // namespace net
