@@ -25,6 +25,7 @@ import android.net.TetherConfigParcel;
 import android.net.TetherOffloadRuleParcel;
 import android.net.TetherStatsParcel;
 import android.net.UidRangeParcel;
+import android.net.netd.aidl.NativeUidRangeConfig;
 
 /** {@hide} */
 interface INetd {
@@ -1349,4 +1350,31 @@ interface INetd {
      *         unix errno.
      */
     void networkCreate(in NativeNetworkConfig config);
+
+    /**
+     * Adds the specified UID ranges to the specified network. The network can be physical or
+     * virtual. Traffic from the UID ranges will be routed to the network by default. The possible
+     * value of subsidiary priority for physical and unreachable networks is 0-999. 0 is the highest
+     * priority. 0 is also the default value. Virtual network supports only the default value.
+     *
+     * @param NativeUidRangeConfig a parcel contains netId, UID ranges, subsidiary priority, etc.
+     *
+     * @throws ServiceSpecificException in case of failure, with an error code corresponding to the
+     *         unix errno.
+     */
+    void networkAddUidRangesParcel(in NativeUidRangeConfig uidRangesConfig);
+
+    /**
+     * Removes the specified UID ranges from the specified network. The network can be physical or
+     * virtual. Traffic from the UID ranges will no longer be routed to the network by default. The
+     * possible value of subsidiary priority for physical and unreachable networks is 0-999. 0 is
+     * the highest priority. 0 is also the default value. Virtual network supports only the default
+     * value.
+     *
+     * @param NativeUidRangeConfig a parcel contains netId, UID ranges, subsidiary priority, etc.
+     *
+     * @throws ServiceSpecificException in case of failure, with an error code corresponding to the
+     *         unix errno.
+     */
+    void networkRemoveUidRangesParcel(in NativeUidRangeConfig uidRangesConfig);
 }
